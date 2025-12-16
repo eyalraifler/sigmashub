@@ -1,0 +1,15 @@
+# dependencies
+node_modules/
+frontend/node_modules/
+
+# next build output
+.next/
+frontend/.next/
+
+# common build outputs
+dist/
+build/
+
+# env files
+.env
+.env.*
