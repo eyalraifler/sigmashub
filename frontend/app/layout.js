@@ -1,5 +1,6 @@
 import "./globals.css";
 import { geistSans, geistMono } from "./fonts";
+import CustomCursor from "./components/CustomCursor";
 
 export const metadata = {
   title: "SigmaHub",
@@ -19,8 +20,10 @@ export default function RootLayout({ children }) {
           "text-white",
         ].join(" ")}
       >
+        
         {children}
       </body>
     </html>
   );
 }
+

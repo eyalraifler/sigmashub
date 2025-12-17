@@ -1,25 +1,29 @@
 import Link from "next/link"
 import NavBar from "./components/NavBar"
 import ParticlesBackground from "./components/ParticlesBackground";
+import { leagueSpartan, arial } from "./fonts";
 
 export default function Home() {
   return (
-    <main>
+    <main className="bg-[#141D29]">
       <ParticlesBackground />
 
       <NavBar />
 
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-hidden black_pointy">
 
 
         <div className="relative mx-auto flex max-w-6xl flex-col items-center px-8 pb-24 pt-16 text-center">
-          <p className="text-[52px] font-semibold tracking-[0.25em] text-[#EE7951] sm:text-[64px]">
-            LET'S FEED
+          <p className={"pointy font-arial font-black text-[#EE7951] tracking-[0.03em] text-8xl"}>
+            LET&apos;S FEED
           </p>
 
-           <h1 className="text-white mt-3 text-[64px] font-light tracking-[0.08em] sm:text-[86px] md:text-[96px]">
+          <p className="pointy relative inline-block cursor-pointer origin-center font-black">
             YOUR AURA
-          </h1>
+          </p>
+
+
+
 
           <p className="mt-8 max-w-xl text-lg text-white/80">
             A <span className="font-semibold text-white">modern</span> social platform built{" "}
@@ -28,7 +32,7 @@ export default function Home() {
 
           <Link
             href="/signup"
-            className="mt-10 rounded-full bg-[#50FF6C] px-12 py-3 text-lg font-semibold text-black hover:brightness-110 active:brightness-95"
+            className="pointy mt-10 rounded-full bg-[#50FF6C] px-12 py-3 text-lg font-semibold text-black hover:brightness-110 active:brightness-95"
           >
             Sign up
           </Link>

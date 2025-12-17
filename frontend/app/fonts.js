@@ -1,4 +1,4 @@
-import { Geist, Geist_Mono, Dancing_Script } from "next/font/google";
+import { Geist, Geist_Mono, Dancing_Script, League_Spartan } from "next/font/google";
 
 export const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,3 +14,9 @@ export const dancingScript = Dancing_Script({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
 });
+
+export const leagueSpartan = League_Spartan({
+  subsets: ["latin"],
+  weight: ["700", "800", "900"],
+});
+
