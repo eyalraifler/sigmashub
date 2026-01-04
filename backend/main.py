@@ -151,9 +151,7 @@ def signup(payload: SignupRequest):
 
     if len(username) > 32:
         raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
-    #if len(password) < 8: till deploynment i want no limitations
-        #raise HTTPException(status_code=400, detail="Password must be at least 8 chars")
-    if "@" not in email: #or "." not in email   for now without . till deploying
+    if "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
 
     pw_hash = hash_password(password)
@@ -161,7 +159,6 @@ def signup(payload: SignupRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        # duplicates
         cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="Email already exists")
@@ -170,7 +167,6 @@ def signup(payload: SignupRequest):
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="Username already exists")
 
-        # insert
         cur.execute(
             """
             INSERT INTO users (email, username, password_hash)
@@ -181,7 +177,11 @@ def signup(payload: SignupRequest):
         user_id = cur.lastrowid
         conn.commit()
 
-        return {"ok": True, "user": {"id": user_id, "username": username, "email": email}}
+        return {
+            "ok": True,
+            "token": "dev-token",  # later replace with real JWT
+            "user": {"id": user_id, "username": username, "email": email},
+        }
 
     except HTTPException:
         conn.rollback()
@@ -192,3 +192,6 @@ def signup(payload: SignupRequest):
     finally:
         cur.close()
         conn.close()
+
+
+
