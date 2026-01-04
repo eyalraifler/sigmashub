@@ -25,8 +25,9 @@ def run_schema():
 
     cur = conn.cursor()
     try:
-        for _ in cur.execute(sql, multi=True):
-            pass
+        statements = [s.strip() for s in sql.split(";") if s.strip()]
+        for stmt in statements:
+            cur.execute(stmt)
     finally:
         cur.close()
         conn.close()
