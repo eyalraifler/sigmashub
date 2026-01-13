@@ -50,7 +50,8 @@ export default function SignupPage() {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    redirect("/app");
+    return { ok:true};
+    //redirect("/app");
   }
 
   return (

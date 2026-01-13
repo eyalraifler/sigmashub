@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
 
     bio VARCHAR(200) NULL,
     profile_image_url VARCHAR(512) NULL,
+    onboarding_completed TINYINT(1) NOT NULL DEFAULT 0,
 
     is_private TINYINT(1) NOT NULL DEFAULT 0,
     is_email_verified TINYINT(1) NOT NULL DEFAULT 0,

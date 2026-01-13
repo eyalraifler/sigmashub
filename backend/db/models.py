@@ -2,7 +2,7 @@ from datetime import datetime
 
 
 class User:
-    def __init__(self, id: int, email: str, username: str, password_hash: str, created_at: datetime, is_private: int, bio: str = None, profile_image_url: str = None, is_email_verified: int = 0):
+    def __init__(self, id: int, email: str, username: str, password_hash: str, created_at: datetime, is_private: int, bio: str = None, profile_image_url: str = None, onboarding_completed: int = 0, is_email_verified: int = 0):
         self.id = id
         self.email = email
         self.username = username
@@ -10,6 +10,7 @@ class User:
         self.created_at = created_at
         self.is_private = is_private
         self.bio = bio
+        self.onboarding_completed = onboarding_completed
         self.profile_image_url = profile_image_url
         self.is_email_verified = is_email_verified
         

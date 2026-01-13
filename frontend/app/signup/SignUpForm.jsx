@@ -7,6 +7,20 @@ export default function SignupForm({ action }) {
   const [show, setShow] = useState(false);
   const [state, formAction, pending] = useActionState(action, null);
 
+  // If signup succeeded - show onboarding UI instead of signup form
+  if (state?.ok) {
+    return (
+      <div className="border p-4">
+        <h2 className="text-2xl font-bold mb-2">Complete your profile</h2>
+        <p className="mb-4 text-gray-600">
+          Add a profile picture and bio.
+        </p>
+
+        <OnboardingInline />
+      </div>
+    );
+  }
+
   return (
     <form action={formAction}>
       <div>
@@ -40,6 +54,28 @@ export default function SignupForm({ action }) {
       {state?.error && (
         <p className="mt-2 text-red-500">{state.error}</p>
       )}
+    </form>
+  );
+}
+
+
+function OnboardingInline() {
+  // temporary UI (replace with real upload + bio form)
+  return (
+    <form className="space-y-3">
+      <div>
+        <label className="mr-4">Profile picture</label>
+        <input type="file" name="avatar" accept="image/*" />
+      </div>
+
+      <div>
+        <label className="mr-4">Bio</label>
+        <textarea name="bio" maxLength={160} className="border w-full p-2" rows={4} />
+      </div>
+
+      <button type="button" className="border border-green-600 font-bold px-3 py-1">
+        Save profile
+      </button>
     </form>
   );
 }
