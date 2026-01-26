@@ -1,10 +1,14 @@
 import os
 import time
 import bcrypt
+import base64
+import uuid
 import mysql.connector
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
@@ -14,6 +18,11 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = FastAPI(title="SigmaHub API", version="0.1.0")
+
+# Directory for storing uploaded avatars
+UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "avatars"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR.parent)), name="uploads")
 
 # Allow frontend dev servers
 app.add_middleware(
@@ -54,13 +63,47 @@ def verify_password(password: str, password_hash: str) -> bool:
     return bcrypt.checkpw(password.encode("utf-8"), password_hash.encode("utf-8"))
 
 
+
+
+def save_base64_image(base64_string: str) -> str:
+    """
+    Save a base64 encoded image to disk and return the relative path.
+    Returns empty string if input is invalid.
+    """
+    if not base64_string or not base64_string.startswith("data:image"):
+        return ""
+    
+    try:
+        # Extract the base64 data
+        # Format: data:image/png;base64,iVBORw0KGgoAAAANS...
+        header, encoded = base64_string.split(",", 1)
+        
+        # Get image type from header
+        image_type = header.split("/")[1].split(";")[0]  # png, jpeg, etc.
+        
+        # Generate unique filename
+        filename = f"{uuid.uuid4()}.{image_type}"
+        filepath = UPLOAD_DIR / filename
+        
+        # Decode and save
+        image_data = base64.b64decode(encoded)
+        with open(filepath, "wb") as f:
+            f.write(image_data)
+        
+        # Return relative path for storage in DB
+        return f"/uploads/avatars/{filename}"
+    
+    except Exception as e:
+        print(f"Error saving image: {e}")
+        return ""
+
 # -----------------------
 # Health
 # -----------------------
 @app.get("/health")
 def health():
     try:
-        conn = conn.get_conn()
+        conn = get_conn()
         conn.close()
         db_status = "connected"
     except Exception:
@@ -194,4 +237,110 @@ def signup(payload: SignupRequest):
         conn.close()
 
 
+class SignupCompleteRequest(BaseModel):
+    email: str
+    username: str
+    password: str
+    avatar_path: str
+    bio: str
 
+@app.post("/api/signup/check_user_available")
+def check_user_available(payload: SignupRequest):
+    email = payload.email.strip().lower()
+    username = payload.username.strip()
+    password = payload.password
+
+    if len(username) > 32:
+        raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+    
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Email already exists")
+
+        cur.execute("SELECT id FROM users WHERE username=%s LIMIT 1", (username,))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Username already exists")
+        
+        return {"ok": True,
+                "user": {"username": username, "email": email}}
+    finally:
+        conn.close()
+        cur.close()
+        
+
+
+
+
+
+
+@app.post("/api/signup/complete_signup")
+def complete_signup(payload: SignupCompleteRequest):
+    email = payload.email.strip().lower()
+    username = payload.username.strip()
+    password = payload.password
+    avatar_base64 = payload.avatar_path
+    bio = payload.bio.strip()
+
+    # Validate
+    if len(username) > 32:
+        raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
+    if "@" not in email:
+        raise HTTPException(status_code=400, detail="Invalid email")
+    if len(bio) > 200:
+        raise HTTPException(status_code=400, detail="Bio must be less than 200 chars")
+
+    # Save avatar if provided
+    avatar_path = save_base64_image(avatar_base64) if avatar_base64 else None
+
+    pw_hash = hash_password(password)
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        # Double-check availability (in case of race condition)
+        cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Email already exists")
+
+        cur.execute("SELECT id FROM users WHERE username=%s LIMIT 1", (username,))
+        if cur.fetchone():
+            raise HTTPException(status_code=409, detail="Username already exists")
+
+        # Insert user with profile data
+        cur.execute(
+            """
+            INSERT INTO users (email, username, password_hash, bio, profile_image_url)
+            VALUES (%s, %s, %s, %s, %s)
+            """,  # Fixed: 5 placeholders for 5 values
+            (email, username, pw_hash, bio, avatar_path),
+        )
+        user_id = cur.lastrowid
+        conn.commit()
+
+        return {
+            "ok": True,
+            "token": "dev-token",  # later replace with real JWT
+            "user": {
+                "id": user_id, 
+                "username": username, 
+                "email": email, 
+                "bio": bio, 
+                "avatar_path": avatar_path
+            },
+        }
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Signup error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
