@@ -137,10 +137,12 @@ export default async function Home() {
           <section id="about" className="bg-[#141D29] py-24">
             <div className="mx-auto max-w-6xl px-8">
               <div className="max-w-3xl">
-                <h2 className="inline-block text-2xl font-semibold text-white">
-                  About
-                </h2>
-                <div className="mt-2 h-1 w-14 rounded-full bg-[#EE7951]" />
+                <div className="inline-block">
+                  <h2 className="text-2xl font-semibold text-white">
+                    About
+                  </h2>
+                  <div className="mt-2 h-1 w-full rounded-full bg-[#EE7951]" />
+                </div>
 
                 <p className="mt-6 text-lg leading-relaxed text-white/75">
                   Sigmas Hub was created by me, Eyal Raifler, as a final school project for cyber class,
@@ -154,7 +156,7 @@ export default async function Home() {
                   <br /><br />
                   This is an educational project, not a commercial product.
                   <br /><br />
-                  It is an open source project, so you’re more than welcome to go and check up the code, here:{" "}
+                  It is an open source project, so you're more than welcome to go and check up the code, here:{" "}
                   <a
                     href="https://github.com/eyalraifler/sigmashub"
                     target="_blank"
