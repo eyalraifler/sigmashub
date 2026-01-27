@@ -15,18 +15,20 @@ export default function ImageCarouselWrapper() {
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % images.length);
-    }, 10000);
+    }, 8000); // Changed to 8 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [currentIndex]); // Reset timer whenever currentIndex changes
+
+  const handleImageSelect = (idx) => {
+    setCurrentIndex(idx);
+    // Timer will automatically reset due to dependency on currentIndex
+  };
 
   return (
     <div className="hidden lg:block w-fit h-screen relative bg-neutral-900">
       
       {/* Logo */}
-      {/*<div className="absolute top-6 left-8 z-10">
-        <h1 className="text-white text-3xl font-bold italic">Sigmas Hub</h1>
-      </div>*/}
       <div className="absolute top-6 left-8 z-10 text-2xl text-white">
         <h1 className={`${dancingScript.className} pointy text-3xl font-semibold tracking-wide`}>
           Sigmas Hub
@@ -34,7 +36,7 @@ export default function ImageCarouselWrapper() {
       </div>
 
       {/* Images */}
-<div className="relative h-full">
+      <div className="relative h-full">
         {images.map((img, idx) => (
           <img
             key={idx}
@@ -48,13 +50,12 @@ export default function ImageCarouselWrapper() {
         ))}
       </div>
 
-
       {/* Indicator lines */}
       <div className="absolute bottom-12 left-1/2 transform -translate-x-1/2 flex gap-3">
         {images.map((_, idx) => (
           <button
             key={idx}
-            onClick={() => setCurrentIndex(idx)}
+            onClick={() => handleImageSelect(idx)}
             className={`h-1 rounded-full transition-all duration-300 ${
               idx === currentIndex
                 ? "w-12 bg-white"

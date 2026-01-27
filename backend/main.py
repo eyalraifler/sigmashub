@@ -5,6 +5,8 @@ import base64
 import uuid
 import mysql.connector
 from pathlib import Path
+import random
+from datetime import datetime, timedelta
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
@@ -12,6 +14,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
+from send_email import send_verification_email
+
 
 # Load backend/.env reliably
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -97,6 +101,13 @@ def save_base64_image(base64_string: str) -> str:
         print(f"Error saving image: {e}")
         return ""
 
+def generate_verification_code() -> str:
+    """Generate a 6-digit verification code"""
+    return str(random.randint(100000, 999999))
+
+# In-memory storage for verification codes (in production, use Redis or DB)
+verification_codes = {}
+
 # -----------------------
 # Health
 # -----------------------
@@ -143,13 +154,18 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class VerifyCodeRequest(BaseModel):
+    email: str
+    code: str
+
+
 @app.post("/api/login")
 def login(payload: LoginRequest):
-    email = payload.email.strip()
+    email = payload.email.strip().lower()
     password = payload.password
 
     if not email or not password:
-        raise HTTPException(status_code=400, detail="Missing username or password")
+        raise HTTPException(status_code=400, detail="Missing email or password")
 
     conn = get_conn()
     cur = conn.cursor(dictionary=True)
@@ -165,17 +181,101 @@ def login(payload: LoginRequest):
         if not verify_password(password, row["password_hash"]):
             raise HTTPException(status_code=401, detail="Invalid credentials")
 
-        # For now: return a dummy token (later replace with JWT)
+        # Generate verification code
+        code = generate_verification_code()
         
+        # Store code with expiration (10 minutes)
+        verification_codes[email] = {
+            "code": code,
+            "expires_at": datetime.now() + timedelta(minutes=10),
+            "user_data": {
+                "id": row["id"],
+                "username": row["username"],
+                "email": row["email"]
+            }
+        }
+
+        # Send verification email
+        try:
+            send_verification_email(email, code)
+        except Exception as e:
+            print(f"Error sending email: {e}")
+            raise HTTPException(status_code=500, detail="Failed to send verification email")
+
         return {
             "ok": True,
-            "token": "dev-token",
-            "user": {"id": row["id"], "username": row["username"], "email": row["email"]},
+            "requires_verification": True,
+            "message": "Verification code sent to your email"
         }
     finally:
         cur.close()
         conn.close()
 
+
+@app.post("/api/login/verify")
+def verify_login_code(payload: VerifyCodeRequest):
+    email = payload.email.strip().lower()
+    code = payload.code.strip()
+
+    if email not in verification_codes:
+        raise HTTPException(status_code=400, detail="No verification code found. Please login again.")
+
+    stored_data = verification_codes[email]
+
+    # Check if code expired
+    if datetime.now() > stored_data["expires_at"]:
+        del verification_codes[email]
+        raise HTTPException(status_code=400, detail="Verification code expired. Please login again.")
+
+    # Check if code matches
+    if stored_data["code"] != code:
+        raise HTTPException(status_code=401, detail="Invalid verification code")
+
+    # Code is valid, clean up and return token
+    user_data = stored_data["user_data"]
+    del verification_codes[email]
+
+    return {
+        "ok": True,
+        "token": "dev-token",
+        "user": user_data
+    }
+
+
+class ResendCodeRequest(BaseModel):
+    email: str
+
+
+@app.post("/api/login/resend")
+def resend_verification_code(payload: ResendCodeRequest):
+    email = payload.email.strip().lower()
+
+    if email not in verification_codes:
+        raise HTTPException(status_code=400, detail="No active verification session found. Please login again.")
+
+    stored_data = verification_codes[email]
+
+    # Generate new verification code
+    code = generate_verification_code()
+    
+    # Update stored code with new expiration
+    verification_codes[email] = {
+        "code": code,
+        "expires_at": datetime.now() + timedelta(minutes=10),
+        "user_data": stored_data["user_data"]
+    }
+
+    # Send verification email
+    try:
+        send_verification_email(email, code)
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send verification email")
+
+    return {
+        "ok": True,
+        "message": "New verification code sent to your email"
+    }
 
 # -----------------------
 # Signup (real DB)
