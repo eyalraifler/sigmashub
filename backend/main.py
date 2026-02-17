@@ -26,6 +26,8 @@ app = FastAPI(title="SigmaHub API", version="0.1.0")
 # Directory for storing uploaded avatars
 UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "avatars"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+POSTS_UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "posts"
+POSTS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR.parent)), name="uploads")
 
 # Allow frontend dev servers
@@ -105,6 +107,38 @@ def generate_verification_code() -> str:
     """Generate a 6-digit verification code"""
     return str(random.randint(100000, 999999))
 
+def save_post_media(base64_string: str) -> str:
+    """
+    Save a base64 encoded post media (image/video) to disk and return the relative path.
+    Returns empty string if input is invalid.
+    """
+    if not base64_string or not base64_string.startswith("data:"):
+        return ""
+    
+    try:
+        # Extract the base64 data
+        # Format: data:image/png;base64,iVBORw0KGgoAAAANS...
+        header, encoded = base64_string.split(",", 1)
+        
+        # Get media type from header
+        media_type = header.split("/")[1].split(";")[0]  # png, jpeg, mp4, etc.
+        
+        # Generate unique filename
+        filename = f"{uuid.uuid4()}.{media_type}"
+        filepath = POSTS_UPLOAD_DIR / filename
+        
+        # Decode and save
+        media_data = base64.b64decode(encoded)
+        with open(filepath, "wb") as f:
+            f.write(media_data)
+        
+        # Return relative path for storage in DB
+        return f"/uploads/posts/{filename}"
+    
+    except Exception as e:
+        print(f"Error saving post media: {e}")
+        return ""
+
 # In-memory storage for verification codes (in production, use Redis or DB)
 verification_codes = {}
 
@@ -124,26 +158,6 @@ def health():
         "database": db_status,
         "ts": int(time.time())
         }
-
-# -----------------------
-# Feed (demo)
-# -----------------------
-class Post(BaseModel):
-    id: int
-    username: str
-    caption: str
-
-
-_FAKE_FEED: List[Post] = [
-    Post(id=1, username="noa", caption="first post"),
-    Post(id=2, username="uri", caption="hello world"),
-    Post(id=3, username="yael", caption="sigma vibe"),
-]
-
-
-@app.get("/api/feed")
-def get_feed():
-    return {"items": _FAKE_FEED}
 
 
 # -----------------------
@@ -444,3 +458,486 @@ def complete_signup(payload: SignupCompleteRequest):
     finally:
         cur.close()
         conn.close()
+
+# -----------------------
+# Posts
+# -----------------------
+
+class CreatePostRequest(BaseModel):
+    user_id: int
+    caption: str = ""
+    media_base64: str
+    media_type: str  # "image" or "video"
+
+class PostResponse(BaseModel):
+    id: int
+    user_id: int
+    username: str
+    profile_image_url: str | None
+    caption: str
+    media_url: str
+    media_type: str
+    likes_count: int
+    comments_count: int
+    created_at: datetime
+    is_likes_by_user: bool = False
+
+@app.post("/api/posts/create")
+def create_post(payload: CreatePostRequest):
+    user_id = payload.user_id
+    caption = payload.caption.strip() if payload.caption else ""
+    media_base64 = payload.media_base64
+    media_type = payload.media_type.lower()
+    
+    if media_type not in ["image", "video"]:
+        raise HTTPException(status_code=400, detail="Invalid media type")
+    
+    if not media_base64:
+        raise HTTPException(status_code=400, detail="Media is required")
+    
+    #save media file
+    media_url = save_post_media(media_base64)
+    if not media_url:
+        raise HTTPException(status_code=400, detail="Invalid media data")
+    
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        #verify user exists
+        cur.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (user_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        #insert post
+        cur.execute(
+            """
+            INSERT INTO posts (user_id, caption, media_url, media_type)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (user_id, caption, media_url, media_type)
+        )
+        post_id = cur.lastrowid
+        conn.commit()
+        
+        return {
+            "ok": True,
+            "post_id": post_id,
+            "media_url": media_url
+        }
+    
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Create post error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/posts/feed")
+def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
+    """
+    Get posts feed with user info
+    """
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT
+                p.id,
+                p.user_id,
+                p.caption,
+                p.media_url,
+                p.media_type,
+                p.likes_count,
+                p.comments_count,
+                p.created_at,
+                u.username,
+                u.profile_image_url,
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            ORDER BY p.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(query, (limit, offset))
+        posts = cur.fetchall()
+        
+        #show to the user the last 5 posts only for demo
+        results = []
+        for post in posts[:5]:
+            results.append(PostResponse(
+                id=post["id"],
+                user_id=post["user_id"],
+                username=post["username"],
+                profile_image_url=post["profile_image_url"],
+                caption=post["caption"],
+                media_url=post["media_url"],
+                media_type=post["media_type"],
+                likes_count=post["likes_count"],
+                comments_count=post["comments_count"],
+                created_at=post["created_at"]
+            ))
+        return {"ok": True, "posts": results}
+    
+    except Exception as e:
+        print(f"Get posts feed error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+        
+        
+@app.get("/api/posts/{post_id}")
+def get_post(post_id: int, user_id: int = None):
+    """
+    Get single post by id with user info
+    """
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT
+                p.id,
+                p.user_id,
+                p.caption,
+                p.media_url,
+                p.media_type,
+                p.likes_count,
+                p.comments_count,
+                p.created_at,
+                u.username,
+                u.profile_image_url
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.id = %s
+            LIMIT 1
+        """
+        cur.execute(query, (post_id,))
+        post = cur.fetchone()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        #check if user liked this post
+        is_liked = False
+        if user_id:
+            cur.execute(
+                "SELECT 1 FROM likes WHERE post_id=%s AND user_id=%s LIMIT 1",
+                (post_id, user_id)
+            )
+            is_liked = bool(cur.fetchone())
+        
+        return {
+            "ok": True,
+            "post": PostResponse(
+                id=post["id"],
+                user_id=post["user_id"],
+                username=post["username"],
+                profile_image_url=post["profile_image_url"],
+                caption=post["caption"],
+                media_url=post["media_url"],
+                media_type=post["media_type"],
+                likes_count=post["likes_count"],
+                comments_count=post["comments_count"],
+                created_at=post["created_at"],
+                is_likes_by_user=is_liked
+            )
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Get post error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+        
+
+
+# -----------------------
+# Likes
+# -----------------------
+
+class LikeRequest(BaseModel):
+    user_id: int
+    post_id: int
+
+
+@app.post("/api/posts/like")
+def like_post(payload: LikeRequest):
+    """
+    Like a post. If already liked, unlike it (toggle behavior)
+    """
+    user_id = payload.user_id
+    post_id = payload.post_id
+    
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        #check if post exists
+        cur.execute("SELECT id FROM posts WHERE id=%s LIMIT 1", (post_id,))
+        if not cur.fetchall():
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        #check if already liked
+        cur.execute("SELECT id FROM likes WHERE user_id=%s AND post_id=%s LIMIT 1", (user_id, post_id))
+        existing_like = cur.fetchone()
+        
+        if existing_like:
+            #unlike: Remove the like and decrement count
+            cur.execute(
+                "DELETE FROM likes WHERE post_id=%s AND user_id=%s", 
+                (post_id, user_id)
+            )
+            cur.execute(
+                "UPDATE posts SET likes_count = GREATEST(likes_count - 1, 0) WHERE id=%s",
+                (post_id,)
+            )
+            conn.commit()
+            return {"ok": True, "liked": False, "message": "Post unliked"}
+        else:
+            #like: Add the like and increment count
+            cur.execute(
+                "INSERT INTO likes (post_id, user_id) VALUES (%s, %s)", 
+                (post_id, user_id)
+            )
+            cur.execute(
+                "UPDATE posts SET likes_count = likes_count + 1 WHERE id=%s",
+                (post_id,)
+            )
+            conn.commit()
+            return {"ok": True, "liked": True, "message": "Post liked"}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Like post error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/posts/{post_id}/likes")
+def get_post_likes(post_id: int, limit: int = 50, offset: int = 0):
+    """
+    Get list of users who liked a post
+    """
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        #check if post exists
+        cur.execute("SELECT id FROM posts WHERE id=%s LIMIT 1", (post_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        query = """
+            SELECT 
+                u.id, 
+                u.username, 
+                u.profile_image_url, 
+                l.created_at
+            FROM likes l
+            JOIN users u ON l.user_id = u.id
+            WHERE l.post_id = %s
+            ORDER BY l.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(query, (post_id, limit, offset))
+        likes = cur.fetchall()
+        
+        result = []
+        for like in likes:
+            result.append({
+                "user_id": like["id"],
+                "username": like["username"],
+                "profile_image_url": like["profile_image_url"],
+                "liked_at": like["created_at"].isoformat() if like.get("created_at") else None
+            })
+        
+        return {"ok": True, "likes": result}
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Get post likes error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+
+# -----------------------
+# Comments
+# -----------------------
+
+class CreateCommentRequest(BaseModel):
+    user_id: int
+    post_id: int
+    content: str
+    
+class CommentRequest(BaseModel):
+    id: int
+    post_id: int
+    user_id: int
+    username: str
+    profile_image_url: str | None
+    content: str
+    created_at: datetime
+
+@app.post("api/posts/comment")
+def create_comment(payload: CreateCommentRequest):
+    post_id = payload.post_id
+    user_id = payload.user_id
+    content = payload.content.strip()
+    
+    if not content:
+        raise HTTPException(status_code=400, detail="Comment content cannot be empty")
+    
+    if len(content) > 500: #arbitrary limit to prevent abuse
+        raise HTTPException(status_code=400, detail="Comment content must be less than 500 chars")
+    
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        #check if post exists
+        cur.execute("SELECT id FROM posts WHERE id=%s LIMIT 1", (post_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="Post not found")
+        
+        #check if user exists
+        cur.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (user_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        #insert comment
+        cur.execute(
+            """
+            INSERT INTO comments (post_id, user_id, content)
+            VALUES (%s, %s, %s)
+            """,
+            (post_id, user_id, content)
+        )
+        comment_id = cur.lastrowid
+        
+        #increment comments count
+        cur.execute(
+            "UPDATE posts SET comments_count = comments_count + 1 WHERE id=%s",
+            (post_id,)
+        )
+        
+        conn.commit()
+        
+        return {
+            "ok": True,
+            "comment_id": comment_id,
+            "message": "Comment created"
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Create comment error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/api/posts/{post_id}/comments")
+def get_post_comments(post_id: int, limit: int = 50, offset: int = 0):
+    """
+    Get comments for a post
+    """
+    
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        query = """
+            SELECT 
+                c.id, 
+                c.post_id, 
+                c.user_id, 
+                c.content, 
+                c.created_at,
+                u.username,
+                u.profile_image_url
+            FROM comments c
+            JOIN users u ON c.user_id = u.id
+            WHERE c.post_id = %s
+            ORDER BY c.created_at ASC
+            LIMIT %s OFFSET %s
+        """
+        cur.execute(query, (post_id, limit, offset))
+        comments = cur.fetchall()
+        
+        result = []
+        for comment in comments:
+            result.append(CommentRequest(
+                id=comment["id"],
+                post_id=comment["post_id"],
+                user_id=comment["user_id"],
+                username=comment["username"],
+                profile_image_url=comment["profile_image_url"],
+                content=comment["content"],
+                created_at=comment["created_at"]
+            ))
+        
+        return {"ok": True, "comments": result}
+    except Exception as e:
+        print(f"Get post comments error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+    
+
+
+@app.get("/api/comments/{comment_id}")
+def delete_comment(comment_id: int, user_id: int):
+    """
+    Delete a comment. Only the comment owner can delete their comment.
+    """
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        #check if comment exists
+        cur.execute("SELECT id, post_id, user_id FROM comments WHERE id=%s LIMIT 1", (comment_id,))
+        comment = cur.fetchone()
+        if not comment:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        
+        #check if user is the owner of the comment
+        if comment["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="You can only delete your own comments")
+        
+        #delete comment
+        cur.execute("DELETE FROM comments WHERE id=%s", (comment_id,))
+        
+        #decrement comments count
+        cur.execute(
+            "UPDATE posts SET comments_count = GREATEST(comments_count - 1, 0) WHERE id=%s",
+            (comment["post_id"],)
+        )
+        
+        conn.commit()
+        
+        return {
+            "ok": True,
+            "message": "Comment deleted"
+        }
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Delete comment error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+
+
