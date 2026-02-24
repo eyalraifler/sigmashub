@@ -7,7 +7,8 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
   const [show, setShow] = useState(false);
   const [loginState, loginFormAction, loginPending] = useActionState(loginAction, null);
   const [verifyState, verifyFormAction, verifyPending] = useActionState(verifyAction, null);
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
+  const email = loginState?.email ?? "";
 
   // Track if we're in verification mode
   const needsVerification = loginState?.ok && loginState?.requires_verification;
@@ -46,12 +47,12 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
 
               <form action={loginFormAction} className="space-y-4">
                 <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="Email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  name="username"
+                  type="username"
+                  placeholder="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
                 />

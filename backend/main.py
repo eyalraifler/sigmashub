@@ -164,7 +164,7 @@ def health():
 # Login (real DB, returns demo token)
 # -----------------------
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
@@ -175,18 +175,21 @@ class VerifyCodeRequest(BaseModel):
 
 @app.post("/api/login")
 def login(payload: LoginRequest):
-    email = payload.email.strip().lower()
+    username = payload.username.strip().lower()
+
+    #email = payload.email.strip().lower()
     password = payload.password
 
-    if not email or not password:
-        raise HTTPException(status_code=400, detail="Missing email or password")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Missing email/username or password")
+    
 
     conn = get_conn()
     cur = conn.cursor(dictionary=True)
     try:
         cur.execute(
-            "SELECT id, username, email, password_hash FROM users WHERE email=%s LIMIT 1",
-            (email,),
+            "SELECT id, username, email, password_hash FROM users WHERE username=%s LIMIT 1",
+            (username,),
         )
         row = cur.fetchone()
         if not row:
@@ -197,7 +200,7 @@ def login(payload: LoginRequest):
 
         # Generate verification code
         code = generate_verification_code()
-        
+        email = row["email"]
         # Store code with expiration (10 minutes)
         verification_codes[email] = {
             "code": code,
@@ -219,7 +222,8 @@ def login(payload: LoginRequest):
         return {
             "ok": True,
             "requires_verification": True,
-            "message": "Verification code sent to your email"
+            "message": "Verification code sent to your email",
+            "email": email
         }
     finally:
         cur.close()
@@ -292,7 +296,7 @@ def resend_verification_code(payload: ResendCodeRequest):
     }
 
 # -----------------------
-# Signup (real DB)
+# Signup
 # -----------------------
 class SignupRequest(BaseModel):
     email: str
@@ -316,10 +320,6 @@ def signup(payload: SignupRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
-        if cur.fetchone():
-            raise HTTPException(status_code=409, detail="Email already exists")
-
         cur.execute("SELECT id FROM users WHERE username=%s LIMIT 1", (username,))
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="Username already exists")
@@ -372,10 +372,6 @@ def check_user_available(payload: SignupRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
-        if cur.fetchone():
-            raise HTTPException(status_code=409, detail="Email already exists")
-
         cur.execute("SELECT id FROM users WHERE username=%s LIMIT 1", (username,))
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="Username already exists")
@@ -417,10 +413,6 @@ def complete_signup(payload: SignupCompleteRequest):
     cur = conn.cursor()
     try:
         # Double-check availability (in case of race condition)
-        cur.execute("SELECT id FROM users WHERE email=%s LIMIT 1", (email,))
-        if cur.fetchone():
-            raise HTTPException(status_code=409, detail="Email already exists")
-
         cur.execute("SELECT id FROM users WHERE username=%s LIMIT 1", (username,))
         if cur.fetchone():
             raise HTTPException(status_code=409, detail="Username already exists")

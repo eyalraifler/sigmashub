@@ -5,32 +5,33 @@ import { redirect } from "next/navigation";
 export default function LoginPage() {
   async function handleLogin(prevState, formData) {
     "use server";
-    const email = formData.get("email");
+    const username = formData.get("username");
     const password = formData.get("password");
 
-    if (!email || !password) {
-      return { ok: false, error: "Missing email or password" };
+    if (!username || !password) {
+      return { ok: false, error: "Missing username or password" };
     }
 
     const res = await fetch("http://127.0.0.1:8000/api/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ username, password }),
       cache: "no-store",
     });
 
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok) {
-      return { ok: false, error: data.detail || "Invalid email or password" };
+      return { ok: false, error: data.detail || "Invalid username or password" };
     }
 
-    // If verification is required, return success with flag
+    // If verification is required, return success with flag and email for verify step
     if (data.requires_verification) {
       return {
         ok: true,
         requires_verification: true,
         message: data.message,
+        email: data.email,
       };
     }
 
@@ -39,7 +40,7 @@ export default function LoginPage() {
     if (!token) return { error: "No token returned" };
 
     const cookieStore = await cookies();
-    const username = data.user?.username;
+    const cookieUsername = data.user?.username;
 
     cookieStore.set("auth_token", token, {
       httpOnly: true,
@@ -49,7 +50,7 @@ export default function LoginPage() {
       maxAge: 60 * 60 * 24 * 7,
     });
 
-    cookieStore.set("username", username || "", {
+    cookieStore.set("username", cookieUsername || "", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
