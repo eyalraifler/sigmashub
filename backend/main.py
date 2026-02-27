@@ -405,7 +405,13 @@ def complete_signup(payload: SignupCompleteRequest):
         raise HTTPException(status_code=400, detail="Bio must be less than 200 chars")
 
     # Save avatar if provided
-    avatar_path = save_base64_image(avatar_base64) if avatar_base64 else None
+    if not avatar_base64:
+        avatar_path = None
+    elif avatar_base64.startswith("data:image"):
+        avatar_path = save_base64_image(avatar_base64) or None
+    else:
+        # Already a path (default avatar selected)
+        avatar_path = avatar_base64
 
     pw_hash = hash_password(password)
 
