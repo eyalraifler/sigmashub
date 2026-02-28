@@ -1,12 +1,13 @@
-import { useState } from "react";
-import { useActionState } from "react";
-import CreatePost from "../components/CreatePost";
+"use client";
 
-export default function AppContent({ createPostAction }) {
+import CreatePost from "../../components/CreatePost";
 
+export default function AppContent({ userId }) {
     return (
-        <div>
-            <CreatePost createPostAction={createPostAction} />
+        <div className="flex-1 px-10 py-8">
+            <div className="max-w-[520px] mx-auto">
+                <CreatePost userId={userId} />
+            </div>
         </div>
-    )
+    );
 }

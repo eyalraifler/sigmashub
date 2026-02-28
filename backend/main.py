@@ -463,12 +463,20 @@ def complete_signup(payload: SignupCompleteRequest):
 # Posts
 # -----------------------
 
+class MediaItemRequest(BaseModel):
+    media_base64: str
+    media_type: str  # "image" or "video"
+
+class MediaItemResponse(BaseModel):
+    media_url: str
+    media_type: str
+    position: int
+
 class CreatePostRequest(BaseModel):
     user_id: int
     caption: str = ""
     tags: List[str] = []
-    media_base64: str
-    media_type: str  # "image" or "video"
+    media_items: List[MediaItemRequest]  # 1–10 items
 
 class PostResponse(BaseModel):
     id: int
@@ -482,26 +490,32 @@ class PostResponse(BaseModel):
     comments_count: int
     created_at: datetime
     is_likes_by_user: bool = False
+    tags: List[str] = []
+    media_items: List[MediaItemResponse] = []
 
 @app.post("/api/posts/create")
 def create_post(payload: CreatePostRequest):
     user_id = payload.user_id
     caption = payload.caption.strip() if payload.caption else ""
     tags = payload.tags
-    media_base64 = payload.media_base64
-    media_type = payload.media_type.lower()
-    
-    if media_type not in ["image", "video"]:
-        raise HTTPException(status_code=400, detail="Invalid media type")
-    
-    if not media_base64:
-        raise HTTPException(status_code=400, detail="Media is required")
-    
-    #save media file
-    media_url = save_post_media(media_base64)
-    if not media_url:
-        raise HTTPException(status_code=400, detail="Invalid media data")
-    
+    media_items = payload.media_items
+
+    if not media_items or len(media_items) > 10:
+        raise HTTPException(status_code=400, detail="Provide between 1 and 10 media items")
+
+    #validate and save all media files before touching the DB
+    saved_media = []
+    for item in media_items:
+        mt = item.media_type.lower()
+        if mt not in ["image", "video"]:
+            raise HTTPException(status_code=400, detail=f"Invalid media type: {mt}")
+        url = save_post_media(item.media_base64)
+        if not url:
+            raise HTTPException(status_code=400, detail="Invalid media data")
+        saved_media.append({"url": url, "type": mt})
+
+    first = saved_media[0]
+
     conn = get_conn()
     cur = conn.cursor()
     try:
@@ -509,22 +523,45 @@ def create_post(payload: CreatePostRequest):
         cur.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (user_id,))
         if not cur.fetchone():
             raise HTTPException(status_code=404, detail="User not found")
-        
-        #insert post
+
+        #insert post (first media stored directly for backward compat)
         cur.execute(
             """
             INSERT INTO posts (user_id, caption, media_url, media_type)
             VALUES (%s, %s, %s, %s)
             """,
-            (user_id, caption, media_url, media_type)
+            (user_id, caption, first["url"], first["type"])
         )
         post_id = cur.lastrowid
+
+        #insert all media into post_media
+        cur.executemany(
+            "INSERT INTO post_media (post_id, media_url, media_type, position) VALUES (%s, %s, %s, %s)",
+            [(post_id, m["url"], m["type"], i) for i, m in enumerate(saved_media)]
+        )
+
+        #insert tags (normalize: strip #, lowercase, deduplicate, max 20)
+        seen = set()
+        normalized_tags = []
+        for tag in tags:
+            t = tag.lstrip("#").strip().lower()
+            if t and t not in seen:
+                seen.add(t)
+                normalized_tags.append(t)
+            if len(normalized_tags) == 20:
+                break
+        if normalized_tags:
+            cur.executemany(
+                "INSERT INTO post_tags (post_id, tag) VALUES (%s, %s)",
+                [(post_id, t) for t in normalized_tags]
+            )
+
         conn.commit()
-        
+
         return {
             "ok": True,
             "post_id": post_id,
-            "media_url": media_url
+            "media_url": first["url"]
         }
     
     except HTTPException:
@@ -557,7 +594,7 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                 p.comments_count,
                 p.created_at,
                 u.username,
-                u.profile_image_url,
+                u.profile_image_url
             FROM posts p
             JOIN users u ON p.user_id = u.id
             ORDER BY p.created_at DESC
@@ -567,8 +604,38 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
         posts = cur.fetchall()
         
         #show to the user the last 5 posts only for demo
+        posts = posts[:5]
+
+        tags_map = {}
+        media_map = {}
+        if posts:
+            post_ids = [p["id"] for p in posts]
+            placeholders = ",".join(["%s"] * len(post_ids))
+
+            #fetch tags
+            cur.execute(
+                f"SELECT post_id, tag FROM post_tags WHERE post_id IN ({placeholders})",
+                post_ids
+            )
+            for row in cur.fetchall():
+                tags_map.setdefault(row["post_id"], []).append(row["tag"])
+
+            #fetch media items
+            cur.execute(
+                f"SELECT post_id, media_url, media_type, position FROM post_media WHERE post_id IN ({placeholders}) ORDER BY post_id, position",
+                post_ids
+            )
+            for row in cur.fetchall():
+                media_map.setdefault(row["post_id"], []).append(
+                    MediaItemResponse(media_url=row["media_url"], media_type=row["media_type"], position=row["position"])
+                )
+
         results = []
-        for post in posts[:5]:
+        for post in posts:
+            #fall back to posts.media_url for old posts without post_media rows
+            items = media_map.get(post["id"]) or [
+                MediaItemResponse(media_url=post["media_url"], media_type=post["media_type"], position=0)
+            ]
             results.append(PostResponse(
                 id=post["id"],
                 user_id=post["user_id"],
@@ -579,7 +646,9 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                 media_type=post["media_type"],
                 likes_count=post["likes_count"],
                 comments_count=post["comments_count"],
-                created_at=post["created_at"]
+                created_at=post["created_at"],
+                tags=tags_map.get(post["id"], []),
+                media_items=items
             ))
         return {"ok": True, "posts": results}
     
@@ -629,7 +698,22 @@ def get_post(post_id: int, user_id: int = None):
                 (post_id, user_id)
             )
             is_liked = bool(cur.fetchone())
-        
+
+        #fetch tags
+        cur.execute("SELECT tag FROM post_tags WHERE post_id=%s", (post_id,))
+        post_tags = [row["tag"] for row in cur.fetchall()]
+
+        #fetch media items
+        cur.execute(
+            "SELECT media_url, media_type, position FROM post_media WHERE post_id=%s ORDER BY position",
+            (post_id,)
+        )
+        media_rows = cur.fetchall()
+        media_items = [
+            MediaItemResponse(media_url=r["media_url"], media_type=r["media_type"], position=r["position"])
+            for r in media_rows
+        ] or [MediaItemResponse(media_url=post["media_url"], media_type=post["media_type"], position=0)]
+
         return {
             "ok": True,
             "post": PostResponse(
@@ -643,7 +727,9 @@ def get_post(post_id: int, user_id: int = None):
                 likes_count=post["likes_count"],
                 comments_count=post["comments_count"],
                 created_at=post["created_at"],
-                is_likes_by_user=is_liked
+                is_likes_by_user=is_liked,
+                tags=post_tags,
+                media_items=media_items
             )
         }
     

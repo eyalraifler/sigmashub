@@ -1,18 +1,15 @@
-import LogoutButton from "../components/LogoutButton";
 import { cookies } from "next/headers";
-import Sidebar from "../components/Sidebar";
+import Sidebar from "../../components/Sidebar";
+import AppContent from "./AppContent.jsx";
 
 export default async function CreatePostPage() {
-
-    const cookies = await cookies();
-    const username = cookies.get("username")?.value;
+    const cookieStore = await cookies();
+    const userId = cookieStore.get("user_id")?.value;
 
     return (
-        <main className="bg-[#141D29]">
+        <main className="flex bg-[#141D29] min-h-screen">
             <Sidebar />
+            <AppContent userId={userId ? Number(userId) : null} />
         </main>
-
-
-    )
-
+    );
 }

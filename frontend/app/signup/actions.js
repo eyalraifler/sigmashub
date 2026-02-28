@@ -69,5 +69,13 @@ export async function handleOnboarding(prevState, formData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
+  cookieStore.set("user_id", String(data.user?.id || ""), {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
   redirect("/app");
 }

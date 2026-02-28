@@ -69,3 +69,24 @@ CREATE TABLE IF NOT EXISTS comments (
     INDEX idx_comments_user_id (user_id),
     INDEX idx_comments_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS post_media (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    post_id BIGINT UNSIGNED NOT NULL,
+    media_url VARCHAR(512) NOT NULL,
+    media_type ENUM('image', 'video') NOT NULL,
+    position TINYINT UNSIGNED NOT NULL DEFAULT 0,
+    PRIMARY KEY (id),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    INDEX idx_post_media_post_id (post_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS post_tags (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    post_id BIGINT UNSIGNED NOT NULL,
+    tag VARCHAR(100) NOT NULL,
+    PRIMARY KEY (id),
+    FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
+    INDEX idx_post_tags_post_id (post_id),
+    INDEX idx_post_tags_tag (tag)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

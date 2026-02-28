@@ -7,6 +7,13 @@ function PostCard({ post, userId, onLike, onComment }) {
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [mediaIndex, setMediaIndex] = useState(0);
+
+  // Resolve media list: use media_items if available, fall back to single media_url
+  const mediaList = post.media_items?.length
+    ? post.media_items
+    : [{ media_url: post.media_url, media_type: post.media_type }];
+  const currentMedia = mediaList[mediaIndex];
 
   const fetchComments = async () => {
     if (comments.length > 0) return; // Already loaded
@@ -111,19 +118,48 @@ function PostCard({ post, userId, onLike, onComment }) {
       </div>
 
       {/* Post Media */}
-      <div className="bg-black">
-        {post.media_type === "image" ? (
+      <div className="bg-black relative aspect-square overflow-hidden">
+        {currentMedia.media_type === "image" ? (
           <img
-            src={`http://localhost:8000${post.media_url}`}
+            src={`http://localhost:8000${currentMedia.media_url}`}
             alt="Post"
-            className="w-full h-auto max-h-[600px] object-contain"
+            className="w-full h-full object-cover"
           />
         ) : (
           <video
-            src={`http://localhost:8000${post.media_url}`}
+            src={`http://localhost:8000${currentMedia.media_url}`}
             controls
-            className="w-full h-auto max-h-[600px]"
+            className="w-full h-full object-cover"
           />
+        )}
+
+        {/* Carousel controls */}
+        {mediaList.length > 1 && (
+          <>
+            <button
+              onClick={() => setMediaIndex((i) => Math.max(0, i - 1))}
+              disabled={mediaIndex === 0}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 disabled:opacity-30"
+            >
+              <img src="/icons/chevron-sign-left.png" alt="previous" className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setMediaIndex((i) => Math.min(mediaList.length - 1, i + 1))}
+              disabled={mediaIndex === mediaList.length - 1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 disabled:opacity-30"
+            >
+              <img src="/icons/chevron-sign-right.png" alt="next" className="w-4 h-4" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {mediaList.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setMediaIndex(i)}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors ${i === mediaIndex ? "bg-white" : "bg-white/40"}`}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -178,6 +214,15 @@ function PostCard({ post, userId, onLike, onComment }) {
           <div className="text-white">
             <span className="font-semibold">{post.username}</span>{" "}
             {post.caption}
+          </div>
+        )}
+
+        {/* Tags */}
+        {post.tags && post.tags.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {post.tags.map((tag) => (
+              <span key={tag} className="text-blue-400 text-sm">#{tag}</span>
+            ))}
           </div>
         )}
 

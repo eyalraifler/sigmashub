@@ -1,30 +1,25 @@
-import LogoutButton from "../components/LogoutButton";
 import { cookies } from "next/headers";
 import Sidebar from "../components/Sidebar";
+import PostsFeed from "../components/PostsFeed";
+import LogoutButton from "../components/LogoutButton";
 
 export default async function AppPage() {
-
   const cookieStore = await cookies();
+  const userId = cookieStore.get("user_id")?.value;
   const username = cookieStore.get("username")?.value;
+
+
   return (
-    <main className="bg-[#141D29]">
+    <main className="flex bg-[#141D29] min-h-screen">
       <Sidebar />
+      <div className="flex-1 px-10 py-8">
         <h1>Welcome {username}! </h1>
-
-      <div className="px-10 py-8">
+        <LogoutButton />
         <div className="max-w-[520px] mx-auto">
-          <div className="border border-white/10 bg-white/5 h-[800px] flex items-center justify-center">
-          Your posts go here 
-          <h1>Welcome {username}! </h1>
-          <LogoutButton />
-
+          <PostsFeed userId={userId ? Number(userId) : null} />
         </div>
       </div>
-    </div>
-    <h1>Welcome {username}! </h1>
-    <LogoutButton />
     </main>
-
   );
 }
 
