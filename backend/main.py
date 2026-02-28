@@ -160,6 +160,8 @@ def health():
         }
 
 
+
+
 # -----------------------
 # Login (real DB, returns demo token)
 # -----------------------
@@ -464,6 +466,7 @@ def complete_signup(payload: SignupCompleteRequest):
 class CreatePostRequest(BaseModel):
     user_id: int
     caption: str = ""
+    tags: List[str] = []
     media_base64: str
     media_type: str  # "image" or "video"
 
@@ -484,6 +487,7 @@ class PostResponse(BaseModel):
 def create_post(payload: CreatePostRequest):
     user_id = payload.user_id
     caption = payload.caption.strip() if payload.caption else ""
+    tags = payload.tags
     media_base64 = payload.media_base64
     media_type = payload.media_type.lower()
     
