@@ -30,6 +30,9 @@ POSTS_UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "posts"
 POSTS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR.parent)), name="uploads")
 
+ICONS_DIR = Path(BASE_DIR).parent / "frontend" / "public" / "icons"
+app.mount("/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")
+
 # Allow frontend dev servers
 app.add_middleware(
     CORSMiddleware,
@@ -981,6 +984,24 @@ def get_post_comments(post_id: int, limit: int = 50, offset: int = 0):
         cur.close()
         conn.close()
     
+
+
+@app.get("/api/users/{user_id}")
+def get_user_profile(user_id: int):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            "SELECT id, username, profile_image_url FROM users WHERE id=%s LIMIT 1",
+            (user_id,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"ok": True, "user": row}
+    finally:
+        cur.close()
+        conn.close()
 
 
 @app.get("/api/comments/{comment_id}")

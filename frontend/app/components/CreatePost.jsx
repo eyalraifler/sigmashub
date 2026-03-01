@@ -1,15 +1,170 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
-export default function CreatePost({ userId, onPostCreated }) {
+function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
+  const [mediaIndex, setMediaIndex] = useState(0);
+
+  // Reset index when media changes
+  useEffect(() => {
+    setMediaIndex((i) => Math.min(i, Math.max(0, mediaFiles.length - 1)));
+  }, [mediaFiles.length]);
+
+  const currentMedia = mediaFiles[mediaIndex];
+
+  return (
+    <div className="border border-white/10 bg-white/5 rounded-xl overflow-hidden">
+      {/* Header */}
+      <div className="p-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {profileImageUrl ? (
+              <img
+                src={`http://localhost:8000${profileImageUrl}`}
+                alt={username}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white font-semibold text-sm">
+                {username ? username[0].toUpperCase() : "?"}
+              </span>
+            )}
+          </div>
+          <span className="text-white font-semibold text-sm">{username || "Name"}</span>
+        </div>
+        <div className="flex gap-1">
+          <span className="w-1 h-1 rounded-full bg-white/50" />
+          <span className="w-1 h-1 rounded-full bg-white/50" />
+          <span className="w-1 h-1 rounded-full bg-white/50" />
+        </div>
+      </div>
+
+      {/* Media with carousel */}
+      <div className="bg-black/40 aspect-square flex items-center justify-center relative overflow-hidden">
+        {currentMedia ? (
+          currentMedia.type === "image" ? (
+            <img src={currentMedia.preview} alt="Preview" className="w-full h-full object-cover" />
+          ) : (
+            <video src={currentMedia.preview} controls className="w-full h-full object-cover" />
+          )
+        ) : (
+          <span className="text-white/20 text-sm">No image selected</span>
+        )}
+
+        {/* Carousel controls */}
+        {mediaFiles.length > 1 && (
+          <>
+            <button
+              type="button"
+              onClick={() => setMediaIndex((i) => Math.max(0, i - 1))}
+              disabled={mediaIndex === 0}
+              className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/50 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 disabled:opacity-30"
+            >
+              <img src="/icons/chevron-sign-left.png" alt="previous" className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setMediaIndex((i) => Math.min(mediaFiles.length - 1, i + 1))}
+              disabled={mediaIndex === mediaFiles.length - 1}
+              className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/50 rounded-full w-8 h-8 flex items-center justify-center hover:bg-black/80 disabled:opacity-30"
+            >
+              <img src="/icons/chevron-sign-right.png" alt="next" className="w-4 h-4" />
+            </button>
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
+              {mediaFiles.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => setMediaIndex(i)}
+                  className={`w-1.5 h-1.5 rounded-full transition-colors ${i === mediaIndex ? "bg-white" : "bg-white/40"}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Actions + Caption + Tags */}
+      <div className="p-3 space-y-2">
+        <div className="flex items-center gap-4 text-white/70">
+          {/* Heart */}
+          <div className="flex items-center gap-1">
+            <img 
+              src="/icons/heart_red.png"
+              alt="like"
+              className="w-5 h-5 object-contain" 
+            />
+            <span className="text-sm">1,500</span>
+          </div>
+          {/* Comment */}
+          <div className="flex items-center gap-1">
+            <img 
+              src="/icons/comment - white.png" 
+              alt="Comments"
+              className="w-5 h-5 object-contain" 
+            />
+            <span className="text-sm">10</span>
+          </div>
+          {/* Share */}
+          <div>
+            <img 
+              src="/icons/send_post - white.png" 
+              alt="share"
+              className="w-5 h-5 object-contain" 
+            />
+          </div>
+          {/* Save */}
+          <div className="ml-auto">
+            <img 
+              src="/icons/download - white.png" 
+              alt="download"
+              className="w-5 h-5 object-contain" 
+            />
+          </div>
+        </div>
+
+        {/* Caption */}
+        {caption ? (
+          <p className="text-white text-sm italic">
+            <span className="font-semibold not-italic">{username || "Name"}</span>{" "}
+            {caption}
+          </p>
+        ) : (
+          <p className="text-white/30 text-sm italic">Caption will appear here...</p>
+        )}
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span key={tag} className="text-blue-400 text-sm">#{tag}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function CreatePost({ userId, onPostCreated, username }) {
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState([]);
   const [tagInput, setTagInput] = useState("");
   const [mediaFiles, setMediaFiles] = useState([]); // [{file, preview, type}]
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+  const [profileImageUrl, setProfileImageUrl] = useState(null);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    fetch(`http://localhost:8000/api/users/${userId}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) setProfileImageUrl(data.user.profile_image_url);
+      })
+      .catch(() => {});
+  }, [userId]);
 
   // --- Tag handlers ---
   const addTag = () => {
@@ -49,7 +204,6 @@ export default function CreatePost({ userId, onPostCreated }) {
       reader.readAsDataURL(file);
     });
 
-    // Reset input so selecting the same files again works
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -73,7 +227,6 @@ export default function CreatePost({ userId, onPostCreated }) {
         throw new Error("Invalid user ID. Please log in again.");
       }
 
-      // Convert all files to base64 in parallel
       const media_items = await Promise.all(
         mediaFiles.map(({ file, type }) =>
           new Promise((resolve, reject) => {
@@ -104,7 +257,6 @@ export default function CreatePost({ userId, onPostCreated }) {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.detail || "Failed to create post");
 
-      // Reset form
       setCaption("");
       setTags([]);
       setTagInput("");
@@ -120,126 +272,153 @@ export default function CreatePost({ userId, onPostCreated }) {
   };
 
   return (
-    <div className="border border-white/10 bg-white/5 rounded-lg p-6 mb-6">
-      <h2 className="text-xl font-semibold text-white mb-4">Create Post</h2>
+    <form onSubmit={handleSubmit}>
+      <div className="flex gap-6 items-start">
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Media thumbnails strip */}
-        {mediaFiles.length > 0 && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {mediaFiles.map((item, i) => (
-              <div key={i} className="relative flex-shrink-0 w-24 h-24">
-                {item.type === "image" ? (
-                  <img
-                    src={item.preview}
-                    alt={`media-${i}`}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                ) : (
-                  <video
-                    src={item.preview}
-                    className="w-full h-full object-cover rounded-lg"
-                  />
-                )}
+        {/* LEFT COLUMN - New Post form */}
+        <div className="flex-1 space-y-4">
+          <h2 className="text-2xl font-bold italic text-white">New Post</h2>
+
+          {/* Caption card */}
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-2">
+            <label className="block text-white/70 text-sm font-semibold italic">Caption</label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.stopPropagation(); }}
+              placeholder="Write a caption..."
+              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 resize-none"
+              rows={4}
+            />
+            <div className="text-white/40 text-xs text-right">{caption.length}</div>
+          </div>
+
+          {/* Tags card */}
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-3">
+            <label className="block text-white/70 text-sm font-semibold italic">Tags</label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder="Add your Sigma Tags (up to 20)"
+                className="flex-1 px-3 py-2 bg-white/10 border border-amber-500/50 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                disabled={tags.length >= 20 || !tagInput.trim()}
+                className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Add
+              </button>
+            </div>
+            {tags.length > 0 && (
+              <div>
+                <span className="text-white/50 text-xs mr-1">Picked:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/50 rounded-full text-amber-400 text-sm"
+                    >
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(i)}
+                        className="hover:text-white leading-none"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="text-white/40 text-xs text-right">{tags.length}/20 tags</div>
+          </div>
+
+          {/* Images card */}
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-3">
+            <label className="block text-white/70 text-sm font-semibold uppercase tracking-wide italic">
+              ADD IMAGES
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {mediaFiles.map((item, i) => (
+                <div key={i} className="relative aspect-square">
+                  {item.type === "image" ? (
+                    <img
+                      src={item.preview}
+                      alt={`media-${i}`}
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  ) : (
+                    <video
+                      src={item.preview}
+                      controls
+                      className="w-full h-full object-cover rounded-lg"
+                    />
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removeMedia(i)}
+                    className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {mediaFiles.length < 10 && (
                 <button
                   type="button"
-                  onClick={() => removeMedia(i)}
-                  className="absolute top-1 right-1 bg-black/70 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center hover:bg-red-600"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="aspect-square border-2 border-dashed border-white/20 rounded-lg flex items-center justify-center text-white/40 hover:border-white/40 hover:text-white/60 transition-colors text-3xl font-light"
                 >
-                  ×
+                  +
                 </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* File input (always visible so user can add more) */}
-        {mediaFiles.length < 10 && (
-          <div>
+              )}
+            </div>
             <input
               ref={fileInputRef}
               type="file"
               accept="image/*,video/*"
               multiple
               onChange={handleFileSelect}
-              className="block w-full text-sm text-white/70
-                file:mr-4 file:py-2 file:px-4
-                file:rounded-md file:border-0
-                file:text-sm file:font-semibold
-                file:bg-blue-500 file:text-white
-                hover:file:bg-blue-600 file:cursor-pointer"
+              className="hidden"
             />
-            <div className="text-white/40 text-xs mt-1 text-right">
-              {mediaFiles.length}/10 files
-            </div>
+            <div className="text-white/40 text-xs text-right">{mediaFiles.length}/10 files</div>
           </div>
-        )}
 
-        {/* Caption */}
-        <div>
-          <textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Write a caption..."
-            className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500"
-            rows={3}
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+
+          <div className="flex justify-end">
+            <button
+              type="submit"
+              disabled={isUploading || mediaFiles.length === 0}
+              className="px-8 py-2 bg-blue-500 text-white rounded-lg font-semibold italic hover:bg-blue-600 disabled:bg-gray-500 disabled:cursor-not-allowed"
+            >
+              {isUploading ? "Uploading..." : "Publish"}
+            </button>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN - Preview */}
+        <div className="flex-1 space-y-4">
+          <h2 className="text-2xl font-bold italic text-white text-center">Preview</h2>
+          <p className="text-white/50 text-sm text-center italic">
+            Preview shows how your content will look when published
+          </p>
+          <PostPreview
+            caption={caption}
+            tags={tags}
+            mediaFiles={mediaFiles}
+            username={username}
+            profileImageUrl={profileImageUrl}
           />
         </div>
 
-        {/* Tags */}
-        <div className="space-y-2">
-          <div className="flex space-x-2">
-            <input
-              type="text"
-              value={tagInput}
-              onChange={(e) => setTagInput(e.target.value)}
-              onKeyDown={handleTagKeyDown}
-              placeholder="#tag"
-              className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500"
-            />
-            <button
-              type="button"
-              onClick={addTag}
-              disabled={tags.length >= 20 || !tagInput.trim()}
-              className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Add
-            </button>
-          </div>
-          {tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag, i) => (
-                <span
-                  key={i}
-                  className="flex items-center gap-1 px-2 py-1 bg-blue-500/20 border border-blue-500/40 rounded-full text-blue-400 text-sm"
-                >
-                  #{tag}
-                  <button
-                    type="button"
-                    onClick={() => removeTag(i)}
-                    className="hover:text-white leading-none"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="text-white/40 text-xs text-right">{tags.length}/20 tags</div>
-        </div>
-
-        {/* Error */}
-        {error && <div className="text-red-500 text-sm">{error}</div>}
-
-        {/* Submit */}
-        <button
-          type="submit"
-          disabled={isUploading || mediaFiles.length === 0}
-          className="w-full py-2 px-4 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 disabled:bg-gray-500 disabled:cursor-not-allowed"
-        >
-          {isUploading ? "Uploading..." : "Post"}
-        </button>
-      </form>
-    </div>
+      </div>
+    </form>
   );
 }

@@ -2,12 +2,10 @@
 
 import CreatePost from "../../components/CreatePost";
 
-export default function AppContent({ userId }) {
+export default function AppContent({ userId, username }) {
     return (
         <div className="flex-1 px-10 py-8">
-            <div className="max-w-[520px] mx-auto">
-                <CreatePost userId={userId} />
-            </div>
+            <CreatePost userId={userId} username={username} />
         </div>
     );
 }

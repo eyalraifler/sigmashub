@@ -5,11 +5,12 @@ import AppContent from "./AppContent.jsx";
 export default async function CreatePostPage() {
     const cookieStore = await cookies();
     const userId = cookieStore.get("user_id")?.value;
+    const username = cookieStore.get("username")?.value;
 
     return (
         <main className="flex bg-[#141D29] min-h-screen">
             <Sidebar />
-            <AppContent userId={userId ? Number(userId) : null} />
+            <AppContent userId={userId ? Number(userId) : null} username={username || "Name"} />
         </main>
     );
 }
