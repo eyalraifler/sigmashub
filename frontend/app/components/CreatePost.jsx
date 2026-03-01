@@ -32,11 +32,7 @@ function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
           </div>
           <span className="text-white font-semibold text-sm">{username || "Name"}</span>
         </div>
-        <div className="flex gap-1">
-          <span className="w-1 h-1 rounded-full bg-white/50" />
-          <span className="w-1 h-1 rounded-full bg-white/50" />
-          <span className="w-1 h-1 rounded-full bg-white/50" />
-        </div>
+        <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
       </div>
 
       {/* Media with carousel */}
@@ -106,19 +102,19 @@ function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
             <span className="text-sm">10</span>
           </div>
           {/* Share */}
-          <div>
-            <img 
-              src="/icons/send_post - white.png" 
+          <div className="flex items-center">
+            <img
+              src="/icons/send_post - white.png"
               alt="share"
-              className="w-5 h-5 object-contain" 
+              className="w-5 h-5 object-contain"
             />
           </div>
           {/* Save */}
-          <div className="ml-auto">
-            <img 
-              src="/icons/download - white.png" 
+          <div className="flex items-center ml-auto">
+            <img
+              src="/icons/download - white.png"
               alt="download"
-              className="w-5 h-5 object-contain" 
+              className="w-5 h-5 object-contain"
             />
           </div>
         </div>

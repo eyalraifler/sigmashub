@@ -25,7 +25,7 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
       </div>
 
       {/* Right side - Login Form */}
-      <div className="flex-1 h-full flex items-center justify-center p-4 lg:p-8 bg-gradient-to-br from-[#0f0f1e] via-[#1a1a2e] to-[#16213e] overflow-y-auto">
+      <div className="flex-1 h-full flex items-center justify-center p-4 lg:p-8 bg-black overflow-y-auto">
         <div className="w-full max-w-md relative">
           <a 
             href="/" 

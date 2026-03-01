@@ -20,7 +20,7 @@ export default async function Home() {
 
 
   return (
-    <main className="bg-[#141D29]">
+    <main className="bg-black">
       <ParticlesBackground />
 
       <NavBar />
@@ -54,7 +54,7 @@ export default async function Home() {
 
 
 
-          <section id="vision" className="bg-[#141D29] py-24">
+          <section id="vision" className="bg-black py-24">
             <div className="mx-auto max-w-6xl px-8">
               <div className="mx-auto max-w-3xl text-center">
 
@@ -77,11 +77,11 @@ export default async function Home() {
 
 
           {/* Features section */}
-          <section id="features" className="relative bg-[#141D29] py-20">
+          <section id="features" className="relative bg-black py-20">
             <div className="mx-auto max-w-6xl px-8">
               <div className="grid gap-10 md:grid-cols-3">
                 {/* Card 1 */}
-                <div className="rounded-2xl bg-[#0F1724] p-8 shadow-sm">
+                <div className="rounded-2xl bg-black p-8 shadow-sm">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={privacy_image}
@@ -98,7 +98,7 @@ export default async function Home() {
                 </div>
 
                 {/* Card 2 */}
-                <div className="rounded-2xl bg-[#0F1724] p-8 shadow-sm">
+                <div className="rounded-2xl bg-black p-8 shadow-sm">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={feed_image}
@@ -115,7 +115,7 @@ export default async function Home() {
                 </div>
 
                 {/* Card 3 */}
-                <div className="rounded-2xl bg-[#0F1724] p-8 shadow-sm">
+                <div className="rounded-2xl bg-black p-8 shadow-sm">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={website_with_cursor_heart}
@@ -134,7 +134,7 @@ export default async function Home() {
             </div>
           </section>
 
-          <section id="about" className="bg-[#141D29] py-24">
+          <section id="about" className="bg-black py-24">
             <div className="mx-auto max-w-6xl px-8">
               <div className="max-w-3xl">
                 <div className="inline-block">

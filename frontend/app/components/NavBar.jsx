@@ -22,7 +22,7 @@ export default function NavBar() {
       className={[
         "sticky top-0 z-50 w-full border-b transition-all duration-300 black_pointy",
         scrolled
-        ? "border-transparent bg-[#141D29]"
+        ? "border-transparent bg-black"
         : "border-transparent bg-transparent",
       ].join(" ")}
       >

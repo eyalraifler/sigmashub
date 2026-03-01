@@ -8,7 +8,7 @@ export default async function CreatePostPage() {
     const username = cookieStore.get("username")?.value;
 
     return (
-        <main className="flex bg-[#141D29] min-h-screen">
+        <main className="flex bg-black min-h-screen">
             <Sidebar />
             <AppContent userId={userId ? Number(userId) : null} username={username || "Name"} />
         </main>

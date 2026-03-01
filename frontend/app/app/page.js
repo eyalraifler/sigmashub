@@ -10,7 +10,7 @@ export default async function AppPage() {
 
 
   return (
-    <main className="flex bg-[#141D29] min-h-screen">
+    <main className="flex bg-black min-h-screen">
       <Sidebar />
       <div className="flex-1 px-10 py-8">
         <h1>Welcome {username}! </h1>

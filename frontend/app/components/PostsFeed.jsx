@@ -16,8 +16,6 @@ function PostCard({ post, userId, onLike, onComment }) {
   const currentMedia = mediaList[mediaIndex];
 
   const fetchComments = async () => {
-    if (comments.length > 0) return; // Already loaded
-
     setIsLoadingComments(true);
     try {
       const response = await fetch(
@@ -54,14 +52,14 @@ function PostCard({ post, userId, onLike, onComment }) {
         body: JSON.stringify({
           post_id: post.id,
           user_id: userId,
-          comment_text: commentText,
+          content: commentText,
         }),
       });
 
       const data = await response.json();
       if (data.ok) {
         setCommentText("");
-        // Refresh comments
+        setComments([]);
         fetchComments();
         if (onComment) onComment(post.id);
       }
@@ -93,32 +91,30 @@ function PostCard({ post, userId, onLike, onComment }) {
   };
 
   return (
-    <div className="border border-white/10 bg-white/5 rounded-lg overflow-hidden mb-6">
-      {/* Post Header */}
-      <div className="p-4 flex items-center space-x-3">
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center">
-          {post.profile_image_url ? (
-            <img
-              src={`http://localhost:8000${post.profile_image_url}`}
-              alt={post.username}
-              className="w-full h-full rounded-full object-cover"
-            />
-          ) : (
-            <span className="text-white font-semibold">
-              {post.username[0].toUpperCase()}
-            </span>
-          )}
-        </div>
-        <div>
-          <div className="text-white font-semibold">{post.username}</div>
-          <div className="text-white/50 text-sm">
-            {new Date(post.created_at).toLocaleDateString()}
+    <div className="border border-white/10 bg-white/5 rounded-xl overflow-hidden mb-6">
+      {/* Header */}
+      <div className="p-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
+            {post.profile_image_url ? (
+              <img
+                src={`http://localhost:8000${post.profile_image_url}`}
+                alt={post.username}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-white font-semibold text-sm">
+                {post.username[0].toUpperCase()}
+              </span>
+            )}
           </div>
+          <span className="text-white font-semibold text-sm">{post.username}</span>
         </div>
+        <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
       </div>
 
-      {/* Post Media */}
-      <div className="bg-black relative aspect-square overflow-hidden">
+      {/* Media */}
+      <div className="bg-black aspect-square relative overflow-hidden">
         {currentMedia.media_type === "image" ? (
           <img
             src={`http://localhost:8000${currentMedia.media_url}`}
@@ -163,63 +159,44 @@ function PostCard({ post, userId, onLike, onComment }) {
         )}
       </div>
 
-      {/* Post Actions */}
-      <div className="p-4 space-y-3">
-        <div className="flex items-center space-x-4">
-          <button
-            onClick={handleLike}
-            className={`flex items-center space-x-1 ${
-              post.is_liked_by_user ? "text-red-500" : "text-white"
-            } hover:text-red-500 transition-colors`}
-          >
-            <svg
-              className="w-6 h-6"
-              fill={post.is_liked_by_user ? "currentColor" : "none"}
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-              />
-            </svg>
-            <span>{post.likes_count}</span>
+      {/* Actions + Caption + Tags */}
+      <div className="p-3 space-y-2">
+        <div className="flex items-center gap-4 text-white/70">
+          {/* Like */}
+          <button onClick={handleLike} className="flex items-center gap-1">
+            <img
+              src={post.is_liked_by_user ? "/icons/heart_red.png" : "/icons/heart_blanked - white.png"}
+              alt="like"
+              className="w-5 h-5 object-contain"
+            />
+            <span className="text-sm text-white">{post.likes_count}</span>
           </button>
-
-          <button
-            onClick={handleToggleComments}
-            className="flex items-center space-x-1 text-white hover:text-blue-500 transition-colors"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-            <span>{post.comments_count}</span>
+          {/* Comment */}
+          <button onClick={handleToggleComments} className="flex items-center gap-1">
+            <img src="/icons/comment - white.png" alt="comments" className="w-5 h-5 object-contain" />
+            <span className="text-sm text-white">{post.comments_count}</span>
           </button>
+          {/* Share */}
+          <div className="flex items-center">
+            <img src="/icons/send_post - white.png" alt="share" className="w-5 h-5 object-contain" />
+          </div>
+          {/* Save */}
+          <div className="flex items-center ml-auto">
+            <img src="/icons/download - white.png" alt="save" className="w-5 h-5 object-contain" />
+          </div>
         </div>
 
         {/* Caption */}
         {post.caption && (
-          <div className="text-white">
+          <p className="text-white text-sm">
             <span className="font-semibold">{post.username}</span>{" "}
             {post.caption}
-          </div>
+          </p>
         )}
 
         {/* Tags */}
         {post.tags && post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1">
+          <div className="flex flex-wrap gap-1">
             {post.tags.map((tag) => (
               <span key={tag} className="text-blue-400 text-sm">#{tag}</span>
             ))}
@@ -228,26 +205,22 @@ function PostCard({ post, userId, onLike, onComment }) {
 
         {/* Comments Section */}
         {showComments && (
-          <div className="space-y-3 mt-4 pt-4 border-t border-white/10">
+          <div className="space-y-3 mt-2 pt-3 border-t border-white/10">
             {isLoadingComments ? (
               <div className="text-white/50 text-sm">Loading comments...</div>
             ) : comments.length > 0 ? (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {comments.map((comment) => (
                   <div key={comment.id} className="text-sm">
-                    <span className="text-white font-semibold">
-                      {comment.username}
-                    </span>{" "}
-                    <span className="text-white/80">{comment.comment_text}</span>
+                    <span className="text-white font-semibold">{comment.username}</span>{" "}
+                    <span className="text-white/80">{comment.content}</span>
                   </div>
                 ))}
               </div>
             ) : (
               <div className="text-white/50 text-sm">No comments yet</div>
             )}
-
-            {/* Add Comment Form */}
-            <form onSubmit={handleSubmitComment} className="flex space-x-2">
+            <form onSubmit={handleSubmitComment} className="flex gap-2">
               <input
                 type="text"
                 value={commentText}

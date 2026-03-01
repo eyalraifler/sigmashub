@@ -492,7 +492,7 @@ class PostResponse(BaseModel):
     likes_count: int
     comments_count: int
     created_at: datetime
-    is_likes_by_user: bool = False
+    is_liked_by_user: bool = False
     tags: List[str] = []
     media_items: List[MediaItemResponse] = []
 
@@ -611,6 +611,7 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
 
         tags_map = {}
         media_map = {}
+        liked_post_ids = set()
         if posts:
             post_ids = [p["id"] for p in posts]
             placeholders = ",".join(["%s"] * len(post_ids))
@@ -633,6 +634,14 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                     MediaItemResponse(media_url=row["media_url"], media_type=row["media_type"], position=row["position"])
                 )
 
+            #fetch which posts the current user has liked
+            if user_id:
+                cur.execute(
+                    f"SELECT post_id FROM likes WHERE user_id=%s AND post_id IN ({placeholders})",
+                    [user_id] + post_ids
+                )
+                liked_post_ids = {row["post_id"] for row in cur.fetchall()}
+
         results = []
         for post in posts:
             #fall back to posts.media_url for old posts without post_media rows
@@ -651,7 +660,8 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                 comments_count=post["comments_count"],
                 created_at=post["created_at"],
                 tags=tags_map.get(post["id"], []),
-                media_items=items
+                media_items=items,
+                is_liked_by_user=post["id"] in liked_post_ids
             ))
         return {"ok": True, "posts": results}
     
@@ -730,7 +740,7 @@ def get_post(post_id: int, user_id: int = None):
                 likes_count=post["likes_count"],
                 comments_count=post["comments_count"],
                 created_at=post["created_at"],
-                is_likes_by_user=is_liked,
+                is_liked_by_user=is_liked,
                 tags=post_tags,
                 media_items=media_items
             )
@@ -878,7 +888,7 @@ class CommentRequest(BaseModel):
     content: str
     created_at: datetime
 
-@app.post("api/posts/comment")
+@app.post("/api/posts/comment")
 def create_comment(payload: CreateCommentRequest):
     post_id = payload.post_id
     user_id = payload.user_id
@@ -906,7 +916,7 @@ def create_comment(payload: CreateCommentRequest):
         #insert comment
         cur.execute(
             """
-            INSERT INTO comments (post_id, user_id, content)
+            INSERT INTO comments (post_id, user_id, comment_text)
             VALUES (%s, %s, %s)
             """,
             (post_id, user_id, content)
@@ -951,7 +961,7 @@ def get_post_comments(post_id: int, limit: int = 50, offset: int = 0):
                 c.id, 
                 c.post_id, 
                 c.user_id, 
-                c.content, 
+                c.comment_text,
                 c.created_at,
                 u.username,
                 u.profile_image_url
@@ -972,7 +982,7 @@ def get_post_comments(post_id: int, limit: int = 50, offset: int = 0):
                 user_id=comment["user_id"],
                 username=comment["username"],
                 profile_image_url=comment["profile_image_url"],
-                content=comment["content"],
+                content=comment["comment_text"],
                 created_at=comment["created_at"]
             ))
         

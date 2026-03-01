@@ -9,7 +9,7 @@ export default function SignupPage() {
   const [showImages, setShowImages] = useState(true);
 
   return (
-    <div className="min-h-screen flex bg-[#141D29] overflow-x-hidden">
+    <div className="min-h-screen flex bg-black overflow-x-hidden">
       {/* 1. Only renders if we are on Step 1 */}
       {showImages && <ImageCarouselWrapper />}
       
