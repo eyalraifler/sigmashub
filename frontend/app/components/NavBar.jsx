@@ -49,10 +49,22 @@ export default function NavBar() {
           </nav>
 
           <div className="flex items-center gap-5 text-white/80">
-          <button className="pointy group inline-flex items-center gap-1 rounded-md border-2 border-transparent px-4 py-2 text-white/80 transition-colors hover:text-white hover:border-orange-400">
-            <span>Help</span>
-            <ChevronDown className="h-4 w-4 text-current transition-transform duration-200 group-hover:rotate-180" />
-          </button>
+          <div className="relative group">
+            <button className="pointy inline-flex items-center gap-1 border-2 border-transparent px-4 py-2 text-white/80 transition-colors group-hover:text-white group-hover:border-orange-400">
+              <span>Help</span>
+              <ChevronDown className="h-4 w-4 text-current transition-transform duration-200 group-hover:rotate-180" />
+            </button>
+            <div className="absolute left-0 top-full hidden group-hover:block">
+              <div className="border-2 border-t-0 border-orange-400 bg-[#f5f0e8] whitespace-nowrap">
+                <Link
+                  href="/contact_page"
+                  className="pointy block px-4 py-3 text-sm text-gray-800 hover:bg-orange-100 transition-colors"
+                >
+                  Contact Us
+                </Link>
+              </div>
+            </div>
+          </div>
 
 
 

@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
-from send_email import send_verification_email
+from send_email import send_verification_email, send_contact_email
 
 
 # Load backend/.env reliably
@@ -23,7 +23,7 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = FastAPI(title="SigmaHub API", version="0.1.0")
 
-# Directory for storing uploaded avatars
+# Directory for storing uploaded avatars and media. In production, consider using cloud storage (S3, GCS) instead of local disk.
 UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "avatars"
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 POSTS_UPLOAD_DIR = Path(BASE_DIR) / "uploads" / "posts"
@@ -1477,5 +1477,27 @@ def delete_comment(comment_id: int, user_id: int):
         cur.close()
         conn.close()
 
+
+# -----------------------
+# Contact
+# -----------------------
+class ContactRequest(BaseModel):
+    name: str
+    email: str
+    message: str
+
+@app.post("/api/contact")
+def contact(req: ContactRequest):
+    name = req.name.strip()
+    email = req.email.strip()
+    message = req.message.strip()
+    if not name or not email or not message:
+        raise HTTPException(status_code=400, detail="All fields are required.")
+    try:
+        send_contact_email(name, email, message)
+    except Exception as e:
+        print(f"Contact email error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to send message. Please try again later.")
+    return {"ok": True}
 
 

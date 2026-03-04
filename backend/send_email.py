@@ -8,6 +8,25 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 
+def send_contact_email(name, sender_email, message):
+    email_sender = "sigmashubofficial@gmail.com"
+    email_password = os.getenv("EMAIL_PASSWORD")
+
+    subject = f"Contact Form – {name}"
+    body = f"From: {name} <{sender_email}>\n\n{message}"
+
+    em = EmailMessage()
+    em['From'] = email_sender
+    em['To'] = email_sender
+    em['Reply-To'] = sender_email
+    em['Subject'] = subject
+    em.set_content(body)
+    context = ssl.create_default_context()
+    with smtplib.SMTP_SSL('smtp.gmail.com', 465, context=context) as smtp:
+        smtp.login(email_sender, email_password)
+        smtp.sendmail(email_sender, email_sender, em.as_string())
+
+
 def send_verification_email(email_receiver, code):
     email_sender = "sigmashubofficial@gmail.com"
     email_password = os.getenv("EMAIL_PASSWORD")
