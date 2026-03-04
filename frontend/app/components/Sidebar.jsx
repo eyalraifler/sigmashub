@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { dancingScript } from "../fonts";
 
-const navItems = [
+const baseNavItems = [
   {
     label: "Home",
     href: "/app",
@@ -37,16 +37,22 @@ const navItems = [
     icon: "/icons/notification - white.png",
     iconActive: "/icons/notification - white.png",
   },
-  {
-    label: "Profile",
-    href: "/app/profile",
-    icon: "/icons/user - white.png",
-    iconActive: "/icons/user - white.png",
-  },
 ];
 
-export default function Sidebar({ onLogoClick }) {
+export default function Sidebar({ username, onLogoClick }) {
   const pathname = usePathname();
+
+  const profileHref = username ? `/app/${username}` : "/app/profile";
+  const navItems = [
+    ...baseNavItems,
+    {
+      label: "Profile",
+      href: profileHref,
+      icon: "/icons/user - white.png",
+      iconActive: "/icons/user - white.png",
+      exact: true,
+    },
+  ];
 
   return (
     <aside className="w-[280px] h-screen sticky top-0 border-r border-white/10 bg-black">

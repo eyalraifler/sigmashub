@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import { API_URL } from "../lib/config";
 
 function PostCard({ post, userId, onLike, onComment }) {
@@ -95,7 +96,7 @@ function PostCard({ post, userId, onLike, onComment }) {
     <div className="border border-white/10 bg-white/5 rounded-xl overflow-hidden mb-6">
       {/* Header */}
       <div className="p-3 flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <Link href={`/app/${post.username}`} className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
             {post.profile_image_url ? (
               <img
@@ -110,7 +111,7 @@ function PostCard({ post, userId, onLike, onComment }) {
             )}
           </div>
           <span className="text-white font-semibold text-sm">{post.username}</span>
-        </div>
+        </Link>
         <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
       </div>
 
@@ -190,7 +191,7 @@ function PostCard({ post, userId, onLike, onComment }) {
         {/* Caption */}
         {post.caption && (
           <p className="text-white text-sm">
-            <span className="font-semibold">{post.username}</span>{" "}
+            <Link href={`/app/${post.username}`} className="font-semibold hover:underline">{post.username}</Link>{" "}
             {post.caption}
           </p>
         )}
@@ -212,9 +213,20 @@ function PostCard({ post, userId, onLike, onComment }) {
             ) : comments.length > 0 ? (
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {comments.map((comment) => (
-                  <div key={comment.id} className="text-sm">
-                    <span className="text-white font-semibold">{comment.username}</span>{" "}
-                    <span className="text-white/80">{comment.content}</span>
+                  <div key={comment.id} className="flex items-start gap-2 text-sm">
+                    <Link href={`/app/${comment.username}`} className="flex-shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center">
+                        {comment.profile_image_url ? (
+                          <img src={`${API_URL}${comment.profile_image_url}`} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-white font-semibold text-xs">{comment.username[0].toUpperCase()}</span>
+                        )}
+                      </div>
+                    </Link>
+                    <p>
+                      <Link href={`/app/${comment.username}`} className="text-white font-semibold hover:underline">{comment.username}</Link>{" "}
+                      <span className="text-white/80">{comment.content}</span>
+                    </p>
                   </div>
                 ))}
               </div>

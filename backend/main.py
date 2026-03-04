@@ -1122,6 +1122,21 @@ def delete_post(post_id: int, user_id: int):
         conn.close()
 
 
+@app.get("/api/users/by-username/{username}")
+def get_user_by_username(username: str):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("SELECT id, username FROM users WHERE username = %s", (username,))
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        return {"ok": True, "user": user}
+    finally:
+        cur.close()
+        conn.close()
+
+
 @app.get("/api/users/{user_id}/profile")
 def get_full_profile(user_id: int, viewer_id: int = None):
     conn = get_conn()

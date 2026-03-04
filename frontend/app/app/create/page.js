@@ -9,7 +9,7 @@ export default async function CreatePostPage() {
 
     return (
         <main className="flex bg-black min-h-screen">
-            <Sidebar />
+            <Sidebar username={username} />
             <AppContent userId={userId ? Number(userId) : null} username={username || "Name"} />
         </main>
     );

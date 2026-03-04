@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { API_URL } from "../../lib/config";
 
 // ─── Edit Profile Modal ───────────────────────────────────────────────────────
@@ -411,15 +412,17 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
         <div style={{ width: "45%", display: "flex", flexDirection: "column", height: "100%" }} className="border-l border-white/10">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-shrink-0">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
-              {post.profile_image_url ? (
-                <img src={`${API_URL}${post.profile_image_url}`} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-white font-semibold text-sm">{post.username[0].toUpperCase()}</span>
-              )}
-            </div>
-            <span className="text-white font-semibold text-sm flex-1">{post.username}</span>
-            <button onClick={onClose} className="text-white/40 hover:text-white transition">
+            <Link href={`/app/${post.username}`} onClick={onClose} className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
+                {post.profile_image_url ? (
+                  <img src={`${API_URL}${post.profile_image_url}`} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white font-semibold text-sm">{post.username[0].toUpperCase()}</span>
+                )}
+              </div>
+              <span className="text-white font-semibold text-sm">{post.username}</span>
+            </Link>
+            <button onClick={onClose} className="text-white/40 hover:text-white transition flex-shrink-0">
               <img src="/icons/close - white.png" alt="close" className="w-5 h-5" />
             </button>
           </div>
@@ -428,7 +431,7 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
           <div style={{ flex: 1, overflowY: "auto" }} className="px-4 py-3 space-y-3">
             {post.caption && (
               <p className="text-sm">
-                <span className="text-white font-semibold">{post.username}</span>{" "}
+                <Link href={`/app/${post.username}`} onClick={onClose} className="text-white font-semibold hover:underline">{post.username}</Link>{" "}
                 <span className="text-white/80">{post.caption}</span>
               </p>
             )}
@@ -445,9 +448,20 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
               <p className="text-white/40 text-sm">No comments yet</p>
             ) : (
               comments.map((c) => (
-                <div key={c.id} className="text-sm">
-                  <span className="text-white font-semibold">{c.username}</span>{" "}
-                  <span className="text-white/80">{c.content}</span>
+                <div key={c.id} className="flex items-start gap-2 text-sm">
+                  <Link href={`/app/${c.username}`} onClick={onClose} className="flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center">
+                      {c.profile_image_url ? (
+                        <img src={`${API_URL}${c.profile_image_url}`} alt="" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-white font-semibold text-xs">{c.username[0].toUpperCase()}</span>
+                      )}
+                    </div>
+                  </Link>
+                  <p>
+                    <Link href={`/app/${c.username}`} onClick={onClose} className="text-white font-semibold hover:underline">{c.username}</Link>{" "}
+                    <span className="text-white/80">{c.content}</span>
+                  </p>
                 </div>
               ))
             )}
@@ -630,8 +644,21 @@ export default function AppContent({ userId, profileUserId }) {
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [showSharePopover, setShowSharePopover] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const isOwnProfile = userId === profileUserId;
+
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      setLinkCopied(true);
+      setTimeout(() => {
+        setLinkCopied(false);
+        setShowSharePopover(false);
+      }, 1500);
+    });
+  };
 
   const fetchProfile = async () => {
     try {
@@ -815,9 +842,31 @@ export default function AppContent({ userId, profileUserId }) {
                 <button className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition">
                   <img src="/icons/settings_white.png" alt="settings" className="w-5 h-5 object-contain" />
                 </button>
-                <button className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition">
-                  <img src="/icons/share_icon_white.png" alt="share" className="w-5 h-5 object-contain" />
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowSharePopover((v) => !v)}
+                    className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition"
+                  >
+                    <img src="/icons/share_icon_white.png" alt="share" className="w-5 h-5 object-contain" />
+                  </button>
+                  {showSharePopover && (
+                    <div
+                      className="absolute top-11 right-0 bg-[#1a1a1a] border border-white/10 rounded-xl p-3 shadow-xl z-50 flex flex-col gap-2"
+                      style={{ width: 280 }}
+                    >
+                      <p className="text-white/60 text-xs font-semibold uppercase tracking-wider mb-1">Share profile</p>
+                      <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-lg px-3 py-2">
+                        <span className="text-white/70 text-xs flex-1 truncate">{typeof window !== "undefined" ? window.location.href : ""}</span>
+                      </div>
+                      <button
+                        onClick={handleCopyLink}
+                        className="w-full py-2 rounded-lg text-sm font-semibold transition bg-[#e91e8c] text-white hover:bg-[#c4187a]"
+                      >
+                        {linkCopied ? "Copied!" : "Copy link"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             ) : (
               <>
