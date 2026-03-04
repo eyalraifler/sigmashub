@@ -28,7 +28,16 @@ export default function NavBar() {
       >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-8 py-5">
           <div className="text-2xl text-white">
-            <Link href="/" className={`${dancingScript.className} pointy text-3xl font-semibold tracking-wide`}>
+            <Link
+              href="/"
+              className={`${dancingScript.className} pointy text-3xl font-semibold tracking-wide`}
+              onClick={(e) => {
+                if (window.location.pathname === "/") {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+              }}
+            >
                 Sigmas Hub
             </Link>
           </div>
