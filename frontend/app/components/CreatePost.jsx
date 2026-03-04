@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { API_URL } from "../lib/config";
 
 function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -20,7 +21,7 @@ function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
             {profileImageUrl ? (
               <img
-                src={`http://localhost:8000${profileImageUrl}`}
+                src={`${API_URL}${profileImageUrl}`}
                 alt={username}
                 className="w-full h-full object-cover"
               />
@@ -154,7 +155,7 @@ export default function CreatePost({ userId, onPostCreated, username }) {
 
   useEffect(() => {
     if (!userId) return;
-    fetch(`http://localhost:8000/api/users/${userId}`)
+    fetch(`${API_URL}/api/users/${userId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.ok) setProfileImageUrl(data.user.profile_image_url);
@@ -235,7 +236,7 @@ export default function CreatePost({ userId, onPostCreated, username }) {
         )
       );
 
-      const response = await fetch("http://localhost:8000/api/posts/create", {
+      const response = await fetch(`${API_URL}/api/posts/create`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

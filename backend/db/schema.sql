@@ -90,3 +90,17 @@ CREATE TABLE IF NOT EXISTS post_tags (
     INDEX idx_post_tags_post_id (post_id),
     INDEX idx_post_tags_tag (tag)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS follows (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    follower_id BIGINT UNSIGNED NOT NULL,
+    following_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    FOREIGN KEY (follower_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (following_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_follows (follower_id, following_id),
+    INDEX idx_follows_follower (follower_id),
+    INDEX idx_follows_following (following_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

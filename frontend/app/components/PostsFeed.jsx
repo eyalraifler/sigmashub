@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { API_URL } from "../lib/config";
 
 function PostCard({ post, userId, onLike, onComment }) {
   const [showComments, setShowComments] = useState(false);
@@ -19,7 +20,7 @@ function PostCard({ post, userId, onLike, onComment }) {
     setIsLoadingComments(true);
     try {
       const response = await fetch(
-        `http://localhost:8000/api/posts/${post.id}/comments`
+        `${API_URL}/api/posts/${post.id}/comments`
       );
       const data = await response.json();
       if (data.ok) {
@@ -44,7 +45,7 @@ function PostCard({ post, userId, onLike, onComment }) {
     if (!commentText.trim()) return;
 
     try {
-      const response = await fetch("http://localhost:8000/api/posts/comment", {
+      const response = await fetch(`${API_URL}/api/posts/comment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -70,7 +71,7 @@ function PostCard({ post, userId, onLike, onComment }) {
 
   const handleLike = async () => {
     try {
-      const response = await fetch("http://localhost:8000/api/posts/like", {
+      const response = await fetch(`${API_URL}/api/posts/like`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -98,7 +99,7 @@ function PostCard({ post, userId, onLike, onComment }) {
           <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center flex-shrink-0 overflow-hidden">
             {post.profile_image_url ? (
               <img
-                src={`http://localhost:8000${post.profile_image_url}`}
+                src={`${API_URL}${post.profile_image_url}`}
                 alt={post.username}
                 className="w-full h-full object-cover"
               />
@@ -117,13 +118,13 @@ function PostCard({ post, userId, onLike, onComment }) {
       <div className="bg-black aspect-square relative overflow-hidden">
         {currentMedia.media_type === "image" ? (
           <img
-            src={`http://localhost:8000${currentMedia.media_url}`}
+            src={`${API_URL}${currentMedia.media_url}`}
             alt="Post"
             className="w-full h-full object-cover"
           />
         ) : (
           <video
-            src={`http://localhost:8000${currentMedia.media_url}`}
+            src={`${API_URL}${currentMedia.media_url}`}
             controls
             className="w-full h-full object-cover"
           />
@@ -252,8 +253,8 @@ export default function PostsFeed({ userId, refreshTrigger }) {
     setIsLoading(true);
     try {
       const url = userId
-        ? `http://localhost:8000/api/posts/feed?user_id=${userId}`
-        : "http://localhost:8000/api/posts/feed";
+        ? `${API_URL}/api/posts/feed?user_id=${userId}`
+        : `${API_URL}/api/posts/feed`;
 
       const response = await fetch(url);
       const data = await response.json();

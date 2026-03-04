@@ -33,16 +33,11 @@ app.mount("/uploads", StaticFiles(directory=str(UPLOAD_DIR.parent)), name="uploa
 ICONS_DIR = Path(BASE_DIR).parent / "frontend" / "public" / "icons"
 app.mount("/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")
 
-# Allow frontend dev servers
+# Allow all origins for local network access (dev only)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1009,6 +1004,415 @@ def get_user_profile(user_id: int):
         if not row:
             raise HTTPException(status_code=404, detail="User not found")
         return {"ok": True, "user": row}
+    finally:
+        cur.close()
+        conn.close()
+
+
+class UpdateProfileRequest(BaseModel):
+    user_id: int
+    username: str = None
+    email: str = None
+    bio: str = None
+    profile_image: str = None  # base64 data URI or existing path
+
+
+@app.put("/api/users/{user_id}/update")
+def update_profile(user_id: int, payload: UpdateProfileRequest):
+    if payload.user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("SELECT id, username, email FROM users WHERE id=%s LIMIT 1", (user_id,))
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        updates = {}
+
+        if payload.username is not None:
+            username = payload.username.strip()
+            if not username:
+                raise HTTPException(status_code=400, detail="Username cannot be empty")
+            if len(username) > 32:
+                raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
+            if username != user["username"]:
+                cur.execute(
+                    "SELECT id FROM users WHERE username=%s AND id != %s LIMIT 1",
+                    (username, user_id),
+                )
+                if cur.fetchone():
+                    raise HTTPException(status_code=409, detail="Username already taken")
+            updates["username"] = username
+
+        if payload.email is not None:
+            email = payload.email.strip().lower()
+            if "@" not in email:
+                raise HTTPException(status_code=400, detail="Invalid email")
+            updates["email"] = email
+
+        if payload.bio is not None:
+            bio = payload.bio.strip()
+            if len(bio) > 200:
+                raise HTTPException(status_code=400, detail="Bio must be less than 200 chars")
+            updates["bio"] = bio
+
+        if payload.profile_image is not None:
+            if payload.profile_image.startswith("data:image"):
+                avatar_path = save_base64_image(payload.profile_image)
+                if avatar_path:
+                    updates["profile_image_url"] = avatar_path
+            elif payload.profile_image:
+                updates["profile_image_url"] = payload.profile_image
+
+        if updates:
+            set_clause = ", ".join([f"{k}=%s" for k in updates.keys()])
+            cur.execute(
+                f"UPDATE users SET {set_clause} WHERE id=%s",
+                list(updates.values()) + [user_id],
+            )
+            conn.commit()
+
+        cur.execute(
+            "SELECT id, username, email, bio, profile_image_url FROM users WHERE id=%s LIMIT 1",
+            (user_id,),
+        )
+        updated_user = cur.fetchone()
+        return {"ok": True, "user": updated_user}
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Update profile error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.delete("/api/posts/{post_id}")
+def delete_post(post_id: int, user_id: int):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute("SELECT id, user_id FROM posts WHERE id=%s LIMIT 1", (post_id,))
+        post = cur.fetchone()
+        if not post:
+            raise HTTPException(status_code=404, detail="Post not found")
+        if post["user_id"] != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this post")
+
+        cur.execute("DELETE FROM posts WHERE id=%s", (post_id,))
+        conn.commit()
+        return {"ok": True}
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Delete post error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/users/{user_id}/profile")
+def get_full_profile(user_id: int, viewer_id: int = None):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            "SELECT id, username, bio, profile_image_url FROM users WHERE id=%s LIMIT 1",
+            (user_id,),
+        )
+        user = cur.fetchone()
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+
+        cur.execute("SELECT COUNT(*) AS cnt FROM posts WHERE user_id=%s", (user_id,))
+        posts_count = cur.fetchone()["cnt"]
+
+        cur.execute("SELECT COUNT(*) AS cnt FROM follows WHERE following_id=%s", (user_id,))
+        followers_count = cur.fetchone()["cnt"]
+
+        cur.execute("SELECT COUNT(*) AS cnt FROM follows WHERE follower_id=%s", (user_id,))
+        following_count = cur.fetchone()["cnt"]
+
+        is_followed_by_viewer = False
+        if viewer_id and viewer_id != user_id:
+            cur.execute(
+                "SELECT 1 FROM follows WHERE follower_id=%s AND following_id=%s LIMIT 1",
+                (viewer_id, user_id),
+            )
+            is_followed_by_viewer = bool(cur.fetchone())
+
+        return {
+            "ok": True,
+            "profile": {
+                **user,
+                "posts_count": posts_count,
+                "followers_count": followers_count,
+                "following_count": following_count,
+                "is_followed_by_viewer": is_followed_by_viewer,
+            },
+        }
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/users/{user_id}/posts")
+def get_user_posts(user_id: int, viewer_id: int = None):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+                   p.likes_count, p.comments_count, p.created_at,
+                   u.username, u.profile_image_url
+            FROM posts p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id = %s
+            ORDER BY p.created_at DESC
+            """,
+            (user_id,),
+        )
+        posts = cur.fetchall()
+
+        if not posts:
+            return {"ok": True, "posts": []}
+
+        post_ids = [p["id"] for p in posts]
+        placeholders = ",".join(["%s"] * len(post_ids))
+
+        cur.execute(
+            f"SELECT post_id, tag FROM post_tags WHERE post_id IN ({placeholders})",
+            post_ids,
+        )
+        tags_map = {}
+        for row in cur.fetchall():
+            tags_map.setdefault(row["post_id"], []).append(row["tag"])
+
+        cur.execute(
+            f"SELECT post_id, media_url, media_type, position FROM post_media WHERE post_id IN ({placeholders}) ORDER BY post_id, position",
+            post_ids,
+        )
+        media_map = {}
+        for row in cur.fetchall():
+            media_map.setdefault(row["post_id"], []).append(
+                {"media_url": row["media_url"], "media_type": row["media_type"], "position": row["position"]}
+            )
+
+        liked_post_ids = set()
+        if viewer_id:
+            cur.execute(
+                f"SELECT post_id FROM likes WHERE user_id=%s AND post_id IN ({placeholders})",
+                [viewer_id] + post_ids,
+            )
+            liked_post_ids = {row["post_id"] for row in cur.fetchall()}
+
+        results = []
+        for post in posts:
+            items = media_map.get(post["id"]) or [
+                {"media_url": post["media_url"], "media_type": post["media_type"], "position": 0}
+            ]
+            results.append({
+                **post,
+                "tags": tags_map.get(post["id"], []),
+                "media_items": items,
+                "is_liked_by_user": post["id"] in liked_post_ids,
+                "created_at": post["created_at"].isoformat() if post.get("created_at") else None,
+            })
+
+        return {"ok": True, "posts": results}
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/users/{user_id}/liked_posts")
+def get_user_liked_posts(user_id: int, viewer_id: int = None):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+                   p.likes_count, p.comments_count, p.created_at,
+                   u.username, u.profile_image_url
+            FROM likes l
+            JOIN posts p ON l.post_id = p.id
+            JOIN users u ON p.user_id = u.id
+            WHERE l.user_id = %s
+            ORDER BY l.created_at DESC
+            """,
+            (user_id,),
+        )
+        posts = cur.fetchall()
+
+        if not posts:
+            return {"ok": True, "posts": []}
+
+        post_ids = [p["id"] for p in posts]
+        placeholders = ",".join(["%s"] * len(post_ids))
+
+        cur.execute(
+            f"SELECT post_id, media_url, media_type, position FROM post_media WHERE post_id IN ({placeholders}) ORDER BY post_id, position",
+            post_ids,
+        )
+        media_map = {}
+        for row in cur.fetchall():
+            media_map.setdefault(row["post_id"], []).append(
+                {"media_url": row["media_url"], "media_type": row["media_type"], "position": row["position"]}
+            )
+
+        results = []
+        for post in posts:
+            items = media_map.get(post["id"]) or [
+                {"media_url": post["media_url"], "media_type": post["media_type"], "position": 0}
+            ]
+            results.append({
+                **post,
+                "tags": [],
+                "media_items": items,
+                "is_liked_by_user": True,
+                "created_at": post["created_at"].isoformat() if post.get("created_at") else None,
+            })
+
+        return {"ok": True, "posts": results}
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/users/{user_id}/followers")
+def get_followers(user_id: int, viewer_id: int = None):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT u.id AS user_id, u.username, u.profile_image_url
+            FROM follows f
+            JOIN users u ON f.follower_id = u.id
+            WHERE f.following_id = %s
+            ORDER BY f.created_at DESC
+            """,
+            (user_id,),
+        )
+        followers = cur.fetchall()
+
+        if viewer_id and followers:
+            follower_ids = [f["user_id"] for f in followers]
+            placeholders = ",".join(["%s"] * len(follower_ids))
+            cur.execute(
+                f"SELECT following_id FROM follows WHERE follower_id=%s AND following_id IN ({placeholders})",
+                [viewer_id] + follower_ids,
+            )
+            viewer_following = {row["following_id"] for row in cur.fetchall()}
+            for f in followers:
+                f["is_following"] = f["user_id"] in viewer_following
+        else:
+            for f in followers:
+                f["is_following"] = False
+
+        return {"ok": True, "followers": followers}
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.get("/api/users/{user_id}/following")
+def get_following(user_id: int, viewer_id: int = None):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT u.id AS user_id, u.username, u.profile_image_url
+            FROM follows f
+            JOIN users u ON f.following_id = u.id
+            WHERE f.follower_id = %s
+            ORDER BY f.created_at DESC
+            """,
+            (user_id,),
+        )
+        following = cur.fetchall()
+
+        if viewer_id and following:
+            following_ids = [f["user_id"] for f in following]
+            placeholders = ",".join(["%s"] * len(following_ids))
+            cur.execute(
+                f"SELECT following_id FROM follows WHERE follower_id=%s AND following_id IN ({placeholders})",
+                [viewer_id] + following_ids,
+            )
+            viewer_following = {row["following_id"] for row in cur.fetchall()}
+            for f in following:
+                f["is_following"] = f["user_id"] in viewer_following
+        else:
+            for f in following:
+                f["is_following"] = False
+
+        return {"ok": True, "following": following}
+    finally:
+        cur.close()
+        conn.close()
+
+
+class FollowRequest(BaseModel):
+    follower_id: int
+    following_id: int
+
+
+@app.post("/api/users/follow")
+def toggle_follow(payload: FollowRequest):
+    follower_id = payload.follower_id
+    following_id = payload.following_id
+
+    if follower_id == following_id:
+        raise HTTPException(status_code=400, detail="Cannot follow yourself")
+
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (following_id,))
+        if not cur.fetchone():
+            raise HTTPException(status_code=404, detail="User not found")
+
+        cur.execute(
+            "SELECT id FROM follows WHERE follower_id=%s AND following_id=%s LIMIT 1",
+            (follower_id, following_id),
+        )
+        existing = cur.fetchone()
+
+        if existing:
+            cur.execute(
+                "DELETE FROM follows WHERE follower_id=%s AND following_id=%s",
+                (follower_id, following_id),
+            )
+            conn.commit()
+            return {"ok": True, "following": False}
+        else:
+            cur.execute(
+                "INSERT INTO follows (follower_id, following_id) VALUES (%s, %s)",
+                (follower_id, following_id),
+            )
+            conn.commit()
+            return {"ok": True, "following": True}
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as e:
+        conn.rollback()
+        print(f"Follow toggle error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
     finally:
         cur.close()
         conn.close()
