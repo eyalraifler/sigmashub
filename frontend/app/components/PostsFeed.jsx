@@ -70,6 +70,25 @@ function PostCard({ post, userId, onLike, onComment }) {
     }
   };
 
+  const handleDownload = async () => {
+    for (let i = 0; i < mediaList.length; i++) {
+      const media = mediaList[i];
+      try {
+        const res = await fetch(`/api/download?path=${encodeURIComponent(media.media_url)}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const ext = media.media_url.split(".").pop().split("?")[0];
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${post.username}_post_${post.id}_${i + 1}.${ext}`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error("Failed to download media:", err);
+      }
+    }
+  };
+
   const handleLike = async () => {
     try {
       const response = await fetch(`${API_URL}/api/posts/like`, {
@@ -183,9 +202,9 @@ function PostCard({ post, userId, onLike, onComment }) {
             <img src="/icons/send_post - white.png" alt="share" className="w-5 h-5 object-contain" />
           </div>
           {/* Save */}
-          <div className="flex items-center ml-auto">
-            <img src="/icons/download - white.png" alt="save" className="w-5 h-5 object-contain" />
-          </div>
+          <button onClick={handleDownload} className="flex items-center ml-auto hover:opacity-70 transition">
+            <img src="/icons/download - white.png" alt="download" className="w-5 h-5 object-contain" />
+          </button>
         </div>
 
         {/* Caption */}
