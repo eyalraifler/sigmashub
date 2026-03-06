@@ -9,33 +9,30 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 #Initialize GenAI client
 gemini_client = genai.Client(api_key=os.getenv("GENAI_API_KEY"))
 
-def get_gemini_response(prompt: str) -> str:
-    """
-    Get a response from the Gemini API for a given prompt.
-    
-    Args:
-        prompt (str): The input prompt to send to the Gemini API.
-    """
+def get_gemini_response(prompt: str, existing_tags: list = []) -> str:
     system_instruction = (
         "You are a helpful assistant for Sigmas Hub website."
         "Sigmas Hub is a social media app for sharing and discovering content."
-        "When a user is creating a post, they can send you their bio, and you will send up to 5 tags that are relevant to the content of their bio." 
+        "When a user is creating a post, they can send you their bio, and you will send up to 5 tags that are relevant to the content of their bio."
         "The tags should be concise and relevant to the content of the bio."
         "If the bio is about a specific topic, you can include tags related to that topic. If the bio is more general, you can include more general tags."
         "Please provide the tags in a comma-separated format without any additional text or explanations."
         "e.g: If the bio is 'I love cooking and sharing recipes', you might respond with 'cooking, recipes, food, culinary, chef'."
-        
         )
-    
+
+    existing_tags_note = ""
+    if existing_tags:
+        existing_tags_note = f"\nThe user already has these tags, do NOT suggest them again: {', '.join(existing_tags)}"
+
     try:
+        print("prompt!!!!: ", prompt)
         response = gemini_client.models.generate_content(
-            model="gemini-2.0-flash",
-            contents=[
-                {"role": "system", "text": system_instruction},
-                {"role": "user", "text": prompt}
-            ],
+            model="gemini-2.5-flash",
+            contents=f"{system_instruction}{existing_tags_note}\nUser Bio: {prompt}\nTags:",
         )
-        return response.text
+        print(f"Gemini API response: {response}")
+        print(response.text)
+        return response.text.strip()
     except Exception as e:
         print(f"Error getting response from Gemini API: {e}")
         return "Error generating tags"

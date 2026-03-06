@@ -1502,6 +1502,7 @@ def contact(req: ContactRequest):
 
 class GeminiRequest(BaseModel):
     prompt: str
+    existing_tags: list[str] = []
 
 @app.post("/ask_ai")
 def ask_ai(data: GeminiRequest):
@@ -1509,7 +1510,7 @@ def ask_ai(data: GeminiRequest):
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
     try:
-        response = get_gemini_response(prompt)
+        response = get_gemini_response(prompt, data.existing_tags)
         return {"ok": True, "response": response}
     except Exception as e:
         print(f"Gemini API error: {e}")

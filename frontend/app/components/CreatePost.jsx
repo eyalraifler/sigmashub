@@ -149,6 +149,7 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   const [tagInput, setTagInput] = useState("");
   const [mediaFiles, setMediaFiles] = useState([]); // [{file, preview, type}]
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
   const [error, setError] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const fileInputRef = useRef(null);
@@ -206,6 +207,32 @@ export default function CreatePost({ userId, onPostCreated, username }) {
 
   const removeMedia = (index) =>
     setMediaFiles((prev) => prev.filter((_, i) => i !== index));
+
+  // --- AI Tag generation ---
+  const handleGenerateTags = async () => {
+    if (!caption.trim()) return;
+    setIsGeneratingTags(true);
+    setError("");
+    try {
+      const res = await fetch(`${API_URL}/ask_ai`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt: caption, existing_tags: tags }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.detail || "AI failed to generate tags");
+      const rawTags = data.response
+        .split(",")
+        .map((t) => t.replace(/^#+/, "").trim().toLowerCase())
+        .filter((t) => t.length > 0);
+      const merged = [...new Set([...tags, ...rawTags])].slice(0, 20);
+      setTags(merged);
+    } catch (err) {
+      setError(err.message || "Failed to generate tags");
+    } finally {
+      setIsGeneratingTags(false);
+    }
+  };
 
   // --- Submit ---
   const handleSubmit = async (e) => {
@@ -276,66 +303,6 @@ export default function CreatePost({ userId, onPostCreated, username }) {
         <div className="flex-1 space-y-4">
           <h2 className="text-2xl font-bold italic text-white">New Post</h2>
 
-          {/* Caption card */}
-          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-2">
-            <label className="block text-white/70 text-sm font-semibold italic">Caption</label>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") e.stopPropagation(); }}
-              placeholder="Write a caption..."
-              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 resize-none"
-              rows={4}
-            />
-            <div className="text-white/40 text-xs text-right">{caption.length}</div>
-          </div>
-
-          {/* Tags card */}
-          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-3">
-            <label className="block text-white/70 text-sm font-semibold italic">Tags</label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagKeyDown}
-                placeholder="Add your Sigma Tags (up to 20)"
-                className="flex-1 px-3 py-2 bg-white/10 border border-amber-500/50 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-amber-500"
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                disabled={tags.length >= 20 || !tagInput.trim()}
-                className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Add
-              </button>
-            </div>
-            {tags.length > 0 && (
-              <div>
-                <span className="text-white/50 text-xs mr-1">Picked:</span>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {tags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/50 rounded-full text-amber-400 text-sm"
-                    >
-                      #{tag}
-                      <button
-                        type="button"
-                        onClick={() => removeTag(i)}
-                        className="hover:text-white leading-none"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="text-white/40 text-xs text-right">{tags.length}/20 tags</div>
-          </div>
-
           {/* Images card */}
           <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-3">
             <label className="block text-white/70 text-sm font-semibold uppercase tracking-wide italic">
@@ -385,6 +352,84 @@ export default function CreatePost({ userId, onPostCreated, username }) {
               className="hidden"
             />
             <div className="text-white/40 text-xs text-right">{mediaFiles.length}/10 files</div>
+          </div>
+
+          {/* Caption card */}
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-2">
+            <label className="block text-white/70 text-sm font-semibold italic">Caption</label>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.stopPropagation(); }}
+              placeholder="Write a caption..."
+              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 resize-none"
+              rows={4}
+            />
+            <div className="text-white/40 text-xs text-right">{caption.length}</div>
+          </div>
+
+          {/* Tags card */}
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-white/70 text-sm font-semibold italic">Tags</label>
+              <div className="relative group">
+                <button
+                  type="button"
+                  onClick={handleGenerateTags}
+                  disabled={!caption.trim() || isGeneratingTags}
+                  className="flex items-center gap-2 px-3 py-1.5 bg-purple-600/20 border border-purple-500/40 rounded-lg text-purple-300 text-xs font-semibold hover:bg-purple-600/40 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <img src="/icons/ai_icon.png" alt="AI" className="w-7 h-7 object-contain" />
+                  {isGeneratingTags ? "Generating..." : "AI Autofill"}
+                </button>
+                {!caption.trim() && (
+                  <div className="absolute bottom-full right-0 mb-1.5 px-2 py-1 bg-black/90 text-white/80 text-xs rounded whitespace-nowrap pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                    Must write a bio to use AI autofill
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleTagKeyDown}
+                placeholder="Add your Sigma Tags (up to 20)"
+                className="flex-1 px-3 py-2 bg-white/10 border border-amber-500/50 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-amber-500"
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                disabled={tags.length >= 20 || !tagInput.trim()}
+                className="px-4 py-2 bg-white/10 border border-white/20 text-white rounded-lg hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Add
+              </button>
+            </div>
+            {tags.length > 0 && (
+              <div>
+                <span className="text-white/50 text-xs mr-1">Picked:</span>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="flex items-center gap-1 px-2 py-1 bg-amber-500/10 border border-amber-500/50 rounded-full text-amber-400 text-sm"
+                    >
+                      #{tag}
+                      <button
+                        type="button"
+                        onClick={() => removeTag(i)}
+                        className="hover:text-white leading-none"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="text-white/40 text-xs text-right">{tags.length}/20 tags</div>
           </div>
 
           {error && <div className="text-red-500 text-sm">{error}</div>}
