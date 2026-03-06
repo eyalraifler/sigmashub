@@ -631,7 +631,7 @@ function PostsGrid({ posts, isOwnProfile, onDeletePost, onPostClick }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export default function AppContent({ userId, profileUserId }) {
+export default function AppContent({ userId, profileUserId, initialPostId = null }) {
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
@@ -729,6 +729,13 @@ export default function AppContent({ userId, profileUserId }) {
     fetchProfile();
     fetchPosts();
   }, [profileUserId]);
+
+  // Open modal for a specific post when arriving from a notification
+  useEffect(() => {
+    if (!initialPostId || posts.length === 0) return;
+    const index = posts.findIndex((p) => p.id === initialPostId);
+    if (index !== -1) setSelectedPostIndex(index);
+  }, [initialPostId, posts]);
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);

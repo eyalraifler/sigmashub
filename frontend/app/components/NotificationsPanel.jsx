@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { API_URL } from "../lib/config";
 
 function timeAgo(isoString) {
@@ -15,6 +16,12 @@ export default function NotificationsPanel({ userId, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const panelRef = useRef(null);
+  const router = useRouter();
+
+  const handleNotificationClick = (n) => {
+    router.push(`/app/${n.actor_username}?post=${n.post_id}`);
+    onClose();
+  };
 
   useEffect(() => {
     if (!userId) return;
@@ -77,7 +84,8 @@ export default function NotificationsPanel({ userId, onClose }) {
             notifications.map((n) => (
               <div
                 key={n.id}
-                className={`flex items-center gap-3 px-5 py-3 border-b border-white/5 ${
+                onClick={() => handleNotificationClick(n)}
+                className={`flex items-center gap-3 px-5 py-3 border-b border-white/5 cursor-pointer hover:bg-white/10 transition ${
                   !n.is_read ? "bg-white/5" : ""
                 }`}
               >

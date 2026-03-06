@@ -3,8 +3,9 @@ import { notFound } from "next/navigation";
 import Sidebar from "../../components/Sidebar";
 import AppContent from "../profile/AppContent";
 
-export default async function UserProfilePage({ params }) {
+export default async function UserProfilePage({ params, searchParams }) {
   const { username } = await params;
+  const { post: postId } = await searchParams;
   const cookieStore = await cookies();
   const userId = cookieStore.get("user_id")?.value;
   const currentUsername = cookieStore.get("username")?.value;
@@ -29,6 +30,7 @@ export default async function UserProfilePage({ params }) {
         <AppContent
           userId={userId ? Number(userId) : null}
           profileUserId={profileUserId}
+          initialPostId={postId ? Number(postId) : null}
         />
       </div>
     </main>
