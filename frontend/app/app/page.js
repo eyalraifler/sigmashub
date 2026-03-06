@@ -11,7 +11,7 @@ export default async function AppPage() {
 
   return (
     <main className="flex bg-black min-h-screen">
-      <Sidebar username={username} />
+      <Sidebar username={username} userId={userId ? Number(userId) : null} />
       <div className="flex-1 px-10 py-8">
         <h1>Welcome {username}! </h1>
         <LogoutButton />

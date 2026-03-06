@@ -517,9 +517,10 @@ def create_post(payload: CreatePostRequest):
     conn = get_conn()
     cur = conn.cursor()
     try:
-        #verify user exists
-        cur.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (user_id,))
-        if not cur.fetchone():
+        #verify user exists and get their info for notifications
+        cur.execute("SELECT id, username, profile_image_url FROM users WHERE id=%s LIMIT 1", (user_id,))
+        actor = cur.fetchone()
+        if not actor:
             raise HTTPException(status_code=404, detail="User not found")
 
         #insert post (first media stored directly for backward compat)
@@ -556,12 +557,31 @@ def create_post(payload: CreatePostRequest):
 
         conn.commit()
 
+        #notify all followers of this user about the new post
+        try:
+            cur.execute("SELECT follower_id FROM follows WHERE following_id=%s", (user_id,))
+            follower_ids = [row[0] for row in cur.fetchall()]
+            if follower_ids:
+                actor_username = actor[1]
+                actor_profile_image_url = actor[2]
+                cur.executemany(
+                    """
+                    INSERT INTO notifications
+                        (user_id, actor_user_id, actor_username, actor_profile_image_url, post_id, post_media_url)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    [(fid, user_id, actor_username, actor_profile_image_url, post_id, first["url"]) for fid in follower_ids]
+                )
+                conn.commit()
+        except Exception as notif_err:
+            print(f"Notification insert error (non-fatal): {notif_err}")
+
         return {
             "ok": True,
             "post_id": post_id,
             "media_url": first["url"]
         }
-    
+
     except HTTPException:
         conn.rollback()
         raise
@@ -1528,3 +1548,56 @@ def ask_ai(data: GeminiRequest):
     except Exception as e:
         print(f"Gemini API error: {e}")
         raise HTTPException(status_code=500, detail="Failed to get response from AI service")
+
+
+# -----------------------
+# Notifications
+# -----------------------
+
+@app.get("/api/notifications")
+def get_notifications(user_id: int):
+    conn = get_conn()
+    cur = conn.cursor(dictionary=True)
+    try:
+        cur.execute(
+            """
+            SELECT id, actor_user_id, actor_username, actor_profile_image_url,
+                   post_id, post_media_url, is_read, created_at
+            FROM notifications
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+            LIMIT 50
+            """,
+            (user_id,)
+        )
+        notifications = cur.fetchall()
+        unread_count = sum(1 for n in notifications if not n["is_read"])
+        for n in notifications:
+            n["created_at"] = n["created_at"].isoformat()
+        return {"ok": True, "notifications": notifications, "unread_count": unread_count}
+    except Exception as e:
+        print(f"Get notifications error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()
+
+
+@app.post("/api/notifications/read")
+def mark_notifications_read(payload: dict):
+    user_id = payload.get("user_id")
+    if not user_id:
+        raise HTTPException(status_code=400, detail="user_id required")
+    conn = get_conn()
+    cur = conn.cursor()
+    try:
+        cur.execute("UPDATE notifications SET is_read=1 WHERE user_id=%s AND is_read=0", (user_id,))
+        conn.commit()
+        return {"ok": True}
+    except Exception as e:
+        conn.rollback()
+        print(f"Mark notifications read error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    finally:
+        cur.close()
+        conn.close()

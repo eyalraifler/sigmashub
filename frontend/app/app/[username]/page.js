@@ -24,7 +24,7 @@ export default async function UserProfilePage({ params }) {
 
   return (
     <main className="flex bg-black min-h-screen">
-      <Sidebar username={currentUsername} />
+      <Sidebar username={currentUsername} userId={userId ? Number(userId) : null} />
       <div className="flex-1 overflow-y-auto">
         <AppContent
           userId={userId ? Number(userId) : null}
