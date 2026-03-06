@@ -487,6 +487,7 @@ class PostResponse(BaseModel):
     comments_count: int
     created_at: datetime
     is_liked_by_user: bool = False
+    is_following: bool = False
     tags: List[str] = []
     media_items: List[MediaItemResponse] = []
 
@@ -629,12 +630,23 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                 )
 
             #fetch which posts the current user has liked
+            followed_user_ids = set()
             if user_id:
                 cur.execute(
                     f"SELECT post_id FROM likes WHERE user_id=%s AND post_id IN ({placeholders})",
                     [user_id] + post_ids
                 )
                 liked_post_ids = {row["post_id"] for row in cur.fetchall()}
+
+                #fetch which post authors the current user follows
+                author_ids = list({p["user_id"] for p in posts})
+                if author_ids:
+                    author_placeholders = ",".join(["%s"] * len(author_ids))
+                    cur.execute(
+                        f"SELECT following_id FROM follows WHERE follower_id=%s AND following_id IN ({author_placeholders})",
+                        [user_id] + author_ids
+                    )
+                    followed_user_ids = {row["following_id"] for row in cur.fetchall()}
 
         results = []
         for post in posts:
@@ -655,7 +667,8 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
                 created_at=post["created_at"],
                 tags=tags_map.get(post["id"], []),
                 media_items=items,
-                is_liked_by_user=post["id"] in liked_post_ids
+                is_liked_by_user=post["id"] in liked_post_ids,
+                is_following=post["user_id"] in followed_user_ids
             ))
         return {"ok": True, "posts": results}
     

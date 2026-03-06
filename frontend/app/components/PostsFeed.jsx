@@ -10,6 +10,21 @@ function PostCard({ post, userId, onLike, onComment }) {
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [mediaIndex, setMediaIndex] = useState(0);
+  const [isFollowing, setIsFollowing] = useState(post.is_following ?? false);
+
+  const handleFollowToggle = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/follow`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ follower_id: userId, following_id: post.user_id }),
+      });
+      const data = await res.json();
+      if (data.ok) setIsFollowing(data.following);
+    } catch (err) {
+      console.error("Failed to toggle follow:", err);
+    }
+  };
 
   // Resolve media list: use media_items if available, fall back to single media_url
   const mediaList = post.media_items?.length
@@ -131,7 +146,21 @@ function PostCard({ post, userId, onLike, onComment }) {
           </div>
           <span className="text-white font-semibold text-sm">{post.username}</span>
         </Link>
-        <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
+        <div className="flex items-center gap-3">
+          {userId && post.user_id !== userId && (
+            <button
+              onClick={handleFollowToggle}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+                isFollowing
+                  ? "bg-white/10 text-white hover:bg-white/20"
+                  : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
+              }`}
+            >
+              {isFollowing ? "Following" : "Follow"}
+            </button>
+          )}
+          <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
+        </div>
       </div>
 
       {/* Media */}
