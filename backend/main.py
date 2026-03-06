@@ -7,7 +7,6 @@ import mysql.connector
 from pathlib import Path
 import random
 from datetime import datetime, timedelta
-
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,7 +14,7 @@ from pydantic import BaseModel
 from typing import List
 from dotenv import load_dotenv
 from send_email import send_verification_email, send_contact_email
-
+from ai_services import get_gemini_response
 
 # Load backend/.env reliably
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -1501,3 +1500,17 @@ def contact(req: ContactRequest):
     return {"ok": True}
 
 
+class GeminiRequest(BaseModel):
+    prompt: str
+
+@app.post("/ask_ai")
+def ask_ai(data: GeminiRequest):
+    prompt = data.prompt.strip()
+    if not prompt:
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+    try:
+        response = get_gemini_response(prompt)
+        return {"ok": True, "response": response}
+    except Exception as e:
+        print(f"Gemini API error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get response from AI service")
