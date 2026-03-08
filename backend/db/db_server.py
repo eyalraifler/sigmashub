@@ -53,6 +53,19 @@ def _serve_connection(conn_socket, addr):
     try:
         db = get_conn()
         cursor = db.cursor(dictionary=True)
+    except Exception as e:
+        print(f"[ERROR] MySQL connection failed for {addr}: {e}")
+        try:
+            _send(conn_socket, {'status': 'error', 'message': f"DB server cannot connect to MySQL: {e}"})
+        except Exception:
+            pass
+        try:
+            conn_socket.close()
+        except Exception:
+            pass
+        return
+
+    try:
 
         while True:
             request = _recv(conn_socket)
@@ -164,4 +177,15 @@ if __name__ == '__main__':
     lan_ip = _get_lan_ip()
     print(f"LAN IP of this machine: {lan_ip}")
     print(f"On the API server machine, set: DB_SERVER_HOST={lan_ip}")
+
+    print("Testing MySQL connection...")
+    try:
+        test_conn = get_conn()
+        test_conn.close()
+        print("MySQL connection OK.")
+    except Exception as e:
+        print(f"[ERROR] Cannot connect to MySQL: {e}")
+        print("Check DB_HOST, DB_USER, DB_PASSWORD, DB_NAME in .env")
+        raise SystemExit(1)
+
     start_db_server(port=port)

@@ -21,7 +21,13 @@ def _recv(sock) -> dict:
 def _recvall(sock, n: int) -> bytes | None:
     buf = b''
     while len(buf) < n:
-        chunk = sock.recv(n - len(buf))
+        try:
+            chunk = sock.recv(n - len(buf))
+        except OSError as e:
+            raise ConnectionError(
+                f"Lost connection to DB server: {e}. "
+                "Check that db_server.py is running and can connect to MySQL."
+            ) from e
         if not chunk:
             return None
         buf += chunk
