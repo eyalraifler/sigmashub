@@ -5,7 +5,7 @@ import struct
 import datetime
 import threading
 from dotenv import load_dotenv
-from db_connection import get_conn
+from db_connection import get_conn  # pylint: disable=import-error
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, '..', '.env'))
