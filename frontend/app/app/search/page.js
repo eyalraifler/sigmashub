@@ -1,8 +1,8 @@
 import { cookies } from "next/headers";
-import Sidebar from "../components/Sidebar";
-import PostsFeed from "../components/PostsFeed";
+import Sidebar from "../../components/Sidebar";
+import SearchContent from "./SearchContent";
 
-export default async function AppPage() {
+export default async function SearchPage() {
   const cookieStore = await cookies();
   const userId = cookieStore.get("user_id")?.value;
   const username = cookieStore.get("username")?.value;
@@ -11,11 +11,8 @@ export default async function AppPage() {
     <main className="flex bg-black min-h-screen">
       <Sidebar username={username} userId={userId ? Number(userId) : null} />
       <div className="flex-1 px-10 py-8">
-        <div className="max-w-[520px] mx-auto">
-          <PostsFeed userId={userId ? Number(userId) : null} />
-        </div>
+        <SearchContent userId={userId ? Number(userId) : null} />
       </div>
     </main>
   );
 }
-

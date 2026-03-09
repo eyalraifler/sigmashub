@@ -1257,6 +1257,178 @@ def delete_comment(comment_id: int, user_id: int):
 
 
 # -----------------------
+# Tags
+# -----------------------
+
+@app.get("/api/tags/suggestions")
+def tag_suggestions(q: str, limit: int = 8):
+    q = q.strip().lstrip("#").lower()
+    if not q:
+        return {"ok": True, "tags": []}
+    try:
+        with db() as client:
+            tags = client.execute(
+                """
+                SELECT tag, COUNT(*) AS post_count
+                FROM post_tags
+                WHERE tag LIKE %s
+                GROUP BY tag
+                ORDER BY post_count DESC, tag
+                LIMIT %s
+                """,
+                (f"{q}%", limit),
+            )['data']
+        return {"ok": True, "tags": tags}
+    except Exception as e:
+        print(f"Tag suggestions error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+# -----------------------
+# Search
+# -----------------------
+
+@app.get("/api/search")
+def search(q: str, user_id: int = None, limit: int = 20):
+    q = q.strip()
+    if not q:
+        return {"ok": True, "users": [], "posts": []}
+
+    like_q = f"%{q}%"
+    tag_q = q.lstrip("#").lower()
+
+    try:
+        with db() as client:
+            # Search users by username or bio
+            users = client.execute(
+                """
+                SELECT id, username, bio, profile_image_url
+                FROM users
+                WHERE username LIKE %s OR bio LIKE %s
+                ORDER BY username
+                LIMIT %s
+                """,
+                (like_q, like_q, limit),
+            )['data']
+
+            # Check which users the viewer is already following
+            if user_id and users:
+                uids = [u["id"] for u in users]
+                up = ",".join(["%s"] * len(uids))
+                viewer_following = {
+                    row["following_id"]
+                    for row in client.execute(
+                        f"SELECT following_id FROM follows WHERE follower_id=%s AND following_id IN ({up})",
+                        [user_id] + uids,
+                    )['data']
+                }
+                for u in users:
+                    u["is_following"] = u["id"] in viewer_following
+            else:
+                for u in users:
+                    u["is_following"] = False
+
+            # Search posts by caption or tags
+            posts_by_caption = client.execute(
+                """
+                SELECT DISTINCT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+                       p.likes_count, p.comments_count, p.created_at,
+                       u.username, u.profile_image_url
+                FROM posts p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.caption LIKE %s
+                ORDER BY p.created_at DESC
+                LIMIT %s
+                """,
+                (like_q, limit),
+            )['data']
+
+            posts_by_tag = client.execute(
+                """
+                SELECT DISTINCT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+                       p.likes_count, p.comments_count, p.created_at,
+                       u.username, u.profile_image_url
+                FROM posts p
+                JOIN users u ON p.user_id = u.id
+                JOIN post_tags pt ON pt.post_id = p.id
+                WHERE pt.tag LIKE %s
+                ORDER BY p.created_at DESC
+                LIMIT %s
+                """,
+                (f"%{tag_q}%", limit),
+            )['data']
+
+            # Merge and deduplicate posts
+            seen_ids = set()
+            posts = []
+            for post in posts_by_caption + posts_by_tag:
+                if post["id"] not in seen_ids:
+                    seen_ids.add(post["id"])
+                    posts.append(post)
+            posts = posts[:limit]
+
+            if posts:
+                post_ids = [p["id"] for p in posts]
+                ph = ",".join(["%s"] * len(post_ids))
+
+                tags_map = {}
+                for row in client.execute(
+                    f"SELECT post_id, tag FROM post_tags WHERE post_id IN ({ph})", post_ids
+                )['data']:
+                    tags_map.setdefault(row["post_id"], []).append(row["tag"])
+
+                media_map = {}
+                for row in client.execute(
+                    f"SELECT post_id, media_url, media_type, position"
+                    f" FROM post_media WHERE post_id IN ({ph}) ORDER BY post_id, position",
+                    post_ids,
+                )['data']:
+                    media_map.setdefault(row["post_id"], []).append(
+                        {"media_url": row["media_url"], "media_type": row["media_type"], "position": row["position"]}
+                    )
+
+                liked_post_ids = set()
+                followed_user_ids = set()
+                if user_id:
+                    for row in client.execute(
+                        f"SELECT post_id FROM likes WHERE user_id=%s AND post_id IN ({ph})",
+                        [user_id] + post_ids,
+                    )['data']:
+                        liked_post_ids.add(row["post_id"])
+
+                    author_ids = list({p["user_id"] for p in posts})
+                    if author_ids:
+                        aph = ",".join(["%s"] * len(author_ids))
+                        for row in client.execute(
+                            f"SELECT following_id FROM follows"
+                            f" WHERE follower_id=%s AND following_id IN ({aph})",
+                            [user_id] + author_ids,
+                        )['data']:
+                            followed_user_ids.add(row["following_id"])
+
+                post_results = []
+                for post in posts:
+                    items = media_map.get(post["id"]) or [
+                        {"media_url": post["media_url"], "media_type": post["media_type"], "position": 0}
+                    ]
+                    post_results.append({
+                        **post,
+                        "tags": tags_map.get(post["id"], []),
+                        "media_items": items,
+                        "is_liked_by_user": post["id"] in liked_post_ids,
+                        "is_following": post["user_id"] in followed_user_ids,
+                    })
+            else:
+                post_results = []
+
+        return {"ok": True, "users": users, "posts": post_results}
+
+    except Exception as e:
+        print(f"Search error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+# -----------------------
 # Contact
 # -----------------------
 
