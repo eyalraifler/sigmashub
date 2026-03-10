@@ -1,4 +1,4 @@
-# SigmaHub
+# Sigmas Hub
 
 A full-stack social networking platform built as a final school project. SigmaHub is an Instagram-like social network where users can share photos and videos, follow each other, like and comment on posts, and get AI-powered tag suggestions.
 
@@ -7,24 +7,24 @@ A full-stack social networking platform built as a final school project. SigmaHu
 ## Features
 
 ### User Accounts
-- Sign up with email verification (two-step code confirmation)
+- Sign up and login
 - Secure login with bcrypt password hashing
 - Edit profile: bio, avatar, privacy settings (public/private)
 - Follow and unfollow other users
 - View followers and following lists
 
 ### Posts
-- Create posts with one or multiple images/videos (carousel view)
+- Create posts with one or multiple images/videos
 - Write captions for posts
 - AI-powered tag suggestions via Google Gemini API
 - Like and unlike posts
 - Comment on posts
 
 ### Feed & Discovery
-- Home feed showing posts from followed users
+- Home feed showing posts from followed users and popular posts
 - Search for users and content
-- View any user's profile and their posts
-- View posts you've liked
+- View user's profile and their posts
+
 
 ### Notifications
 - Get notified when someone follows you
@@ -33,8 +33,6 @@ A full-stack social networking platform built as a final school project. SigmaHu
 
 ### Other
 - Contact page
-- Custom animated background with particle effects
-- Responsive dark-themed UI
 
 ---
 

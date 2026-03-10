@@ -1,6 +1,5 @@
 import Link from "next/link";
 import NavBar from "./components/NavBar";
-import ParticlesBackground from "./components/ParticlesBackground";
 import { leagueSpartan, arial } from "./fonts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
@@ -9,6 +8,7 @@ import target_bulb_icon from "../public/target_bulb_icon.webp";
 import feed_image from "../public/feed_image.webp";
 import privacy_image from "../public/privacy_image.webp";
 import website_with_cursor_heart from "../public/website_with_cursor_heart.webp";
+import HoverText from "./components/HoverText";
 
 
 export default async function Home() {
@@ -21,21 +21,24 @@ export default async function Home() {
 
   return (
     <main className="bg-black">
-      <ParticlesBackground />
-
       <NavBar />
 
       <section className="relative overflow-hidden black_pointy">
 
 
         <div className="relative mx-auto flex max-w-6xl flex-col items-center px-8 pb-24 pt-16 text-center">
-          <p className={"pointy font-arial font-black text-[#EE7951] tracking-[0.03em] text-8xl"}>
-            LET&apos;S FEED
-          </p>
+          {/* 2. Replaced the first line with HoverText */}
+          <HoverText 
+            text="LET'S FEED" 
+            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[7rem] leading-none`}
+          />
 
-          <p className="pointy relative inline-block cursor-pointer origin-center font-black text-8xl">
-            YOUR AURA
-          </p>
+          {/* 3. Replaced the second line with HoverText */}
+          <HoverText
+            text="YOUR AURA"
+            delay={1.26}
+            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[7rem] leading-none text-white -mt-6`}
+          />
 
 
 
