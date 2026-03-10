@@ -30,14 +30,14 @@ export default async function Home() {
           {/* 2. Replaced the first line with HoverText */}
           <HoverText 
             text="LET'S FEED" 
-            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[7rem] leading-none`}
+            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[10rem] leading-none`}
           />
 
           {/* 3. Replaced the second line with HoverText */}
           <HoverText
             text="YOUR AURA"
             delay={1.26}
-            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[7rem] leading-none text-white -mt-6`}
+            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[10rem] leading-none text-white -mt-6`}
           />
 
 
