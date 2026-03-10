@@ -9,6 +9,7 @@ import feed_image from "../public/feed_image.webp";
 import privacy_image from "../public/privacy_image.webp";
 import website_with_cursor_heart from "../public/website_with_cursor_heart.webp";
 import HoverText from "./components/HoverText";
+import MeteorsDemo from "./components/meteors";
 
 
 export default async function Home() {
@@ -20,7 +21,8 @@ export default async function Home() {
 
 
   return (
-    <main className="bg-black">
+    <main>
+      <MeteorsDemo />
       <NavBar />
 
       <section className="relative overflow-hidden black_pointy">
@@ -43,21 +45,22 @@ export default async function Home() {
 
 
 
-          <p className="mt-8 max-w-xl text-lg text-white/80">
-            A <span className="font-semibold text-white">modern</span> social platform built{" "}
+          <p className="mt-1 max-w-xl text-xl text-white/80">
+            A <span className="font-semibold text-white">cutting-edge</span> social platform designed{" "}
             <span className="font-semibold text-white">for sigmas</span>, by sigmas
           </p>
 
           <Link
             href="/signup"
-            className="pointy mt-10 rounded-full bg-[#50FF6C] px-12 py-3 text-lg font-semibold text-black hover:brightness-110 active:brightness-95"
+            className="mt-10 rounded-full bg-[#50FF6C] px-12 py-3 text-lg font-semibold text-black hover:brightness-110 active:brightness-95"
+            style={{ cursor: "url('/cursor_pointy.svg'), pointer" }}
           >
             Sign up
           </Link>
 
 
 
-          <section id="vision" className="bg-black py-24">
+          <section id="vision" className="py-24">
             <div className="mx-auto max-w-6xl px-8">
               <div className="mx-auto max-w-3xl text-center">
 
@@ -80,11 +83,11 @@ export default async function Home() {
 
 
           {/* Features section */}
-          <section id="features" className="relative bg-black py-20">
+          <section id="features" className="relative py-20">
             <div className="mx-auto max-w-6xl px-8">
               <div className="grid gap-10 md:grid-cols-3">
                 {/* Card 1 */}
-                <div className="rounded-2xl bg-black p-8 shadow-sm">
+                <div className="rounded-2xl p-8">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={privacy_image}
@@ -101,7 +104,7 @@ export default async function Home() {
                 </div>
 
                 {/* Card 2 */}
-                <div className="rounded-2xl bg-black p-8 shadow-sm">
+                <div className="rounded-2xl p-8">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={feed_image}
@@ -118,7 +121,7 @@ export default async function Home() {
                 </div>
 
                 {/* Card 3 */}
-                <div className="rounded-2xl bg-black p-8 shadow-sm">
+                <div className="rounded-2xl p-8">
                   <div className="mb-6 overflow-hidden rounded-xl">
                     <Image
                       src={website_with_cursor_heart}
@@ -137,7 +140,7 @@ export default async function Home() {
             </div>
           </section>
 
-          <section id="about" className="bg-black py-24">
+          <section id="about" className="py-24">
             <div className="mx-auto max-w-6xl px-8">
               <div className="max-w-3xl">
                 <div className="inline-block">
