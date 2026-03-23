@@ -61,6 +61,14 @@ export async function handleOnboarding(prevState, formData) {
     maxAge: 60 * 60 * 24 * 7,
   });
 
+  cookieStore.set("access_token", token, {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 7,
+  });
+
   cookieStore.set("username", returnedUsername || "", {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",

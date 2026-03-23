@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../lib/config";
+import { getAccessToken } from "../lib/auth";
 
 function timeAgo(isoString) {
   const diff = (Date.now() - new Date(isoString).getTime()) / 1000;
@@ -35,9 +36,10 @@ export default function NotificationsPanel({ userId, onClose }) {
       .finally(() => setIsLoading(false));
 
     // Mark all as read
+    const token = getAccessToken();
     fetch(`${API_URL}/api/notifications/read`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ user_id: userId }),
     }).catch(console.error);
   }, [userId]);

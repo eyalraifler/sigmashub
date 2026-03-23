@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { API_URL } from "../lib/config";
+import { getAccessToken } from "../lib/auth";
 
 function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -263,9 +264,10 @@ export default function CreatePost({ userId, onPostCreated, username }) {
         )
       );
 
+      const token = getAccessToken();
       const response = await fetch(`${API_URL}/api/posts/create`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({
           user_id: userId,
           caption,

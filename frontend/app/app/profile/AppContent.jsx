@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/config";
 import { logout } from "../../logout/actions";
+import { getAccessToken } from "../../lib/auth";
 
 // ─── Edit Profile Modal ───────────────────────────────────────────────────────
 
@@ -38,9 +39,10 @@ function EditProfileModal({ profile, userId, onClose, onSaved }) {
       const body = { user_id: userId, username, email, bio };
       if (imageData) body.profile_image = imageData;
 
+      const token = getAccessToken();
       const res = await fetch(`${API_URL}/api/users/${userId}/update`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(body),
       });
       const data = await res.json();
@@ -298,10 +300,11 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
   };
 
   const handleLike = async () => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/posts/like`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ post_id: post.id, user_id: userId }),
       });
       const data = await res.json();
@@ -322,10 +325,11 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/posts/comment`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ post_id: post.id, user_id: userId, content: commentText }),
       });
       const data = await res.json();
@@ -631,6 +635,95 @@ function PostsGrid({ posts, isOwnProfile, onDeletePost, onPostClick }) {
   );
 }
 
+// ─── Aura Modal ───────────────────────────────────────────────────────────────
+
+const TIER_ICONS = {
+  "Normie": "/icons/icon_rank_normie.png",
+  "Sigma Wannabe": "/icons/icon_sigma_wannabe.png",
+  "Rising Sigma": "/icons/icon_rising_sigma.png",
+  "Certified Sigma": "/icons/icon_certified_sigma.png",
+  "Gigachad": "/icons/icon_gigachad.png",
+};
+
+function AuraModal({ aura, onClose }) {
+  const { score, tier, breakdown } = aura;
+  const { posts_count, followers_count, total_likes, total_comments } = breakdown;
+
+  const components = [
+    { label: "Followers", value: followers_count, weight: 10, contribution: followers_count * 10, color: "#e91e8c" },
+    { label: "Likes received", value: total_likes, weight: 3, contribution: total_likes * 3, color: "#f59e0b" },
+    { label: "Comments received", value: total_comments, weight: 5, contribution: total_comments * 5, color: "#6366f1" },
+    { label: "Posts", value: posts_count, weight: 2, contribution: posts_count * 2, color: "#10b981" },
+  ];
+
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-[#111] border border-white/10 rounded-2xl w-[420px] flex flex-col overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+          <h3 className="text-white font-semibold text-base">Aura Breakdown</h3>
+          <button onClick={onClose} className="text-white/50 hover:text-white">
+            <img src="/icons/close - white.png" alt="close" className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tier badge */}
+        <div className="flex items-center gap-4 px-5 py-5 border-b border-white/10">
+          <img
+            src={TIER_ICONS[tier.name] || "/icons/icon_rank_normie.png"}
+            alt={tier.name}
+            className="w-28 h-28 object-contain"
+          />
+          <div>
+            <p className="text-white/50 text-xs uppercase tracking-widest mb-1">Current Rank</p>
+            <p className="text-white text-xl font-bold">{tier.name}</p>
+            <p className="text-white/60 text-sm mt-0.5">{score.toLocaleString()} aura points</p>
+          </div>
+        </div>
+
+        {/* Breakdown bars */}
+        <div className="px-5 py-5 space-y-4">
+          {components.map((c) => (
+            <div key={c.label}>
+              <div className="flex justify-between items-center mb-1.5">
+                <span className="text-white/70 text-sm">{c.label}</span>
+                <span className="text-white text-sm font-semibold">
+                  {c.value.toLocaleString()} <span className="text-white/40 font-normal">× {c.weight} = {c.contribution.toLocaleString()} pts</span>
+                </span>
+              </div>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{
+                    width: `${Math.min(c.contribution, 100)}%`,
+                    backgroundColor: c.color,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Next tier hint */}
+        <div className="px-5 pb-5">
+          <p className="text-white/30 text-xs text-center">
+            {tier.name === "Gigachad"
+              ? "You have reached the highest rank. 🗿"
+              : `Keep growing to reach the next rank!`}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function AppContent({ userId, profileUserId, initialPostId = null }) {
@@ -649,6 +742,8 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [aura, setAura] = useState(null);
+  const [showAuraModal, setShowAuraModal] = useState(false);
 
   const isOwnProfile = userId === profileUserId;
 
@@ -716,6 +811,16 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     }
   };
 
+  const fetchAura = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/users/${profileUserId}/aura`);
+      const data = await res.json();
+      if (data.ok) setAura(data);
+    } catch (err) {
+      console.error("Failed to fetch aura:", err);
+    }
+  };
+
   const fetchFollowing = async () => {
     try {
       const res = await fetch(
@@ -731,6 +836,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   useEffect(() => {
     fetchProfile();
     fetchPosts();
+    fetchAura();
   }, [profileUserId]);
 
   // Open modal for a specific post when arriving from a notification
@@ -756,10 +862,11 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   };
 
   const handleFollowToggle = async (targetUserId) => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/users/follow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ follower_id: userId, following_id: targetUserId }),
       });
       const data = await res.json();
@@ -790,9 +897,11 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   };
 
   const handleDeletePost = async (postId) => {
+    const token = getAccessToken();
     try {
-      const res = await fetch(`${API_URL}/api/posts/${postId}?user_id=${userId}`, {
+      const res = await fetch(`${API_URL}/api/posts/${postId}`, {
         method: "DELETE",
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       });
       const data = await res.json();
       if (data.ok) {
@@ -841,6 +950,15 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
         <div className="flex-1 space-y-4 pt-2">
           <div className="flex items-center gap-3 flex-wrap">
             <h1 className="text-white text-2xl font-light tracking-wide">{profile.username}</h1>
+            {aura && (
+              <button onClick={() => setShowAuraModal(true)} className="group" title={`${aura.tier.name} — ${aura.aura.toLocaleString()} pts`}>
+                <img
+                  src={TIER_ICONS[aura.tier.name] || "/icons/icon_rank_normie.png"}
+                  alt={aura.tier.name}
+                  className="w-14 h-14 object-contain group-hover:scale-110 transition-transform duration-200"
+                />
+              </button>
+            )}
             {isOwnProfile ? (
               <>
                 <button
@@ -918,6 +1036,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
           {profile.bio && (
             <p className="text-white/80 text-sm max-w-sm leading-relaxed">{profile.bio}</p>
           )}
+
         </div>
       </div>
 
@@ -982,6 +1101,11 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
             setLikedPosts((prev) => update(prev));
           }}
         />
+      )}
+
+      {/* Aura Modal */}
+      {showAuraModal && aura && (
+        <AuraModal aura={{ score: aura.aura, tier: aura.tier, breakdown: aura.breakdown }} onClose={() => setShowAuraModal(false)} />
       )}
 
       {/* Edit Profile Modal */}

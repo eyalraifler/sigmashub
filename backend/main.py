@@ -6,7 +6,9 @@ import uuid
 from pathlib import Path
 import random
 from datetime import datetime, timedelta
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from jose import JWTError, jwt
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -22,6 +24,25 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 DB_HOST = os.getenv("DB_SERVER_HOST", "localhost")
 DB_PORT = int(os.getenv("DB_SERVER_PORT", "5000"))
+
+SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-change-me")
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_DAYS = 7
+
+_security = HTTPBearer()
+
+
+def create_access_token(user_id: int) -> str:
+    expire = datetime.utcnow() + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
+    return jwt.encode({"sub": str(user_id), "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(_security)) -> int:
+    try:
+        payload = jwt.decode(credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM])
+        return int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 
 def db():
@@ -203,7 +224,7 @@ def verify_login_code(payload: VerifyCodeRequest):
     user_data = stored_data["user_data"]
     del verification_codes[email]
 
-    return {"ok": True, "token": "dev-token", "user": user_data}
+    return {"ok": True, "token": create_access_token(user_data["id"]), "user": user_data}
 
 
 class ResendCodeRequest(BaseModel):
@@ -271,7 +292,7 @@ def signup(payload: SignupRequest):
                 )
                 user_id = result['lastrowid']
 
-        return {"ok": True, "token": "dev-token", "user": {"id": user_id, "username": username, "email": email}}
+        return {"ok": True, "token": create_access_token(user_id), "user": {"id": user_id, "username": username, "email": email}}
     except HTTPException:
         raise
     except RuntimeError as e:
@@ -343,7 +364,7 @@ def complete_signup(payload: SignupCompleteRequest):
 
         return {
             "ok": True,
-            "token": "dev-token",
+            "token": create_access_token(user_id),
             "user": {
                 "id": user_id,
                 "username": username,
@@ -401,8 +422,8 @@ class PostResponse(BaseModel):
 
 
 @app.post("/api/posts/create")
-def create_post(payload: CreatePostRequest):
-    user_id = payload.user_id
+def create_post(payload: CreatePostRequest, current_user_id: int = Depends(get_current_user)):
+    user_id = current_user_id
     caption = payload.caption.strip() if payload.caption else ""
     tags = payload.tags
     media_items = payload.media_items
@@ -665,8 +686,8 @@ class LikeRequest(BaseModel):
 
 
 @app.post("/api/posts/like")
-def like_post(payload: LikeRequest):
-    user_id = payload.user_id
+def like_post(payload: LikeRequest, current_user_id: int = Depends(get_current_user)):
+    user_id = current_user_id
     post_id = payload.post_id
 
     try:
@@ -756,9 +777,9 @@ class CommentRequest(BaseModel):
 
 
 @app.post("/api/posts/comment")
-def create_comment(payload: CreateCommentRequest):
+def create_comment(payload: CreateCommentRequest, current_user_id: int = Depends(get_current_user)):
     post_id = payload.post_id
-    user_id = payload.user_id
+    user_id = current_user_id
     content = payload.content.strip()
 
     if not content:
@@ -851,8 +872,8 @@ class UpdateProfileRequest(BaseModel):
 
 
 @app.put("/api/users/{user_id}/update")
-def update_profile(user_id: int, payload: UpdateProfileRequest):
-    if payload.user_id != user_id:
+def update_profile(user_id: int, payload: UpdateProfileRequest, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
     try:
@@ -924,7 +945,7 @@ def update_profile(user_id: int, payload: UpdateProfileRequest):
 
 
 @app.delete("/api/posts/{post_id}")
-def delete_post(post_id: int, user_id: int):
+def delete_post(post_id: int, current_user_id: int = Depends(get_current_user)):
     try:
         with db() as client:
             with client.transaction() as tx:
@@ -933,7 +954,7 @@ def delete_post(post_id: int, user_id: int):
                 )['data'])
                 if not post:
                     raise HTTPException(status_code=404, detail="Post not found")
-                if post["user_id"] != user_id:
+                if post["user_id"] != current_user_id:
                     raise HTTPException(status_code=403, detail="Not authorized to delete this post")
                 tx.execute("DELETE FROM posts WHERE id=%s", (post_id,))
 
@@ -1175,14 +1196,50 @@ def get_following(user_id: int, viewer_id: int = None):
     return {"ok": True, "following": following}
 
 
+def get_tier(aura: int) -> dict:
+    if aura >= 300:
+        return {"name": "Gigachad"}
+    elif aura >= 200:
+        return {"name": "Certified Sigma"}
+    elif aura >= 100:
+        return {"name": "Rising Sigma"}
+    elif aura >= 20:
+        return {"name": "Sigma Wannabe"}
+    else:
+        return {"name": "Normie"}
+
+
+@app.get("/api/users/{user_id}/aura")
+def get_user_aura(user_id: int):
+    try:
+        with db() as client:
+            components = client.execute(
+                """
+                SELECT
+                    (SELECT COUNT(*) FROM posts WHERE user_id=%s) AS posts_count,
+                    (SELECT COUNT(*) FROM follows WHERE following_id=%s) AS followers_count,
+                    (SELECT COALESCE(SUM(likes_count), 0) AS total_likes FROM posts WHERE user_id = %s) AS total_likes,
+                    (SELECT COALESCE(SUM(comments_count), 0) AS total_comments FROM posts WHERE user_id = %s) AS total_comments
+                """,
+                (user_id, user_id, user_id, user_id),
+            )['data'][0]
+            components = {k: int(v) for k, v in components.items()}
+            aura = components["posts_count"] * 2 + components["followers_count"] * 10 + components["total_likes"] * 3 + components["total_comments"] * 5
+        return {"ok": True, "aura": aura, "tier": get_tier(aura), "breakdown": components}
+            
+    except Exception as e:
+        print(f"Get user aura error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
 class FollowRequest(BaseModel):
     follower_id: int
     following_id: int
 
 
 @app.post("/api/users/follow")
-def toggle_follow(payload: FollowRequest):
-    follower_id = payload.follower_id
+def toggle_follow(payload: FollowRequest, current_user_id: int = Depends(get_current_user)):
+    follower_id = current_user_id
     following_id = payload.following_id
 
     if follower_id == following_id:
@@ -1226,7 +1283,7 @@ def toggle_follow(payload: FollowRequest):
 
 
 @app.get("/api/comments/{comment_id}")
-def delete_comment(comment_id: int, user_id: int):
+def delete_comment(comment_id: int, current_user_id: int = Depends(get_current_user)):
     try:
         with db() as client:
             with client.transaction() as tx:
@@ -1236,7 +1293,7 @@ def delete_comment(comment_id: int, user_id: int):
                 )['data'])
                 if not comment:
                     raise HTTPException(status_code=404, detail="Comment not found")
-                if comment["user_id"] != user_id:
+                if comment["user_id"] != current_user_id:
                     raise HTTPException(status_code=403, detail="You can only delete your own comments")
 
                 tx.execute("DELETE FROM comments WHERE id=%s", (comment_id,))
@@ -1500,10 +1557,8 @@ def get_notifications(user_id: int):
 
 
 @app.post("/api/notifications/read")
-def mark_notifications_read(payload: dict):
-    user_id = payload.get("user_id")
-    if not user_id:
-        raise HTTPException(status_code=400, detail="user_id required")
+def mark_notifications_read(payload: dict, current_user_id: int = Depends(get_current_user)):
+    user_id = current_user_id
     try:
         with db() as client:
             with client.transaction() as tx:

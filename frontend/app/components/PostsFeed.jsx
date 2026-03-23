@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { API_URL } from "../lib/config";
+import { getAccessToken } from "../lib/auth";
 
 function PostCard({ post, userId, onLike, onComment }) {
   const [showComments, setShowComments] = useState(false);
@@ -13,10 +14,11 @@ function PostCard({ post, userId, onLike, onComment }) {
   const [isFollowing, setIsFollowing] = useState(post.is_following ?? false);
 
   const handleFollowToggle = async () => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/users/follow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ follower_id: userId, following_id: post.user_id }),
       });
       const data = await res.json();
@@ -59,12 +61,14 @@ function PostCard({ post, userId, onLike, onComment }) {
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
+    const token = getAccessToken();
 
     try {
       const response = await fetch(`${API_URL}/api/posts/comment`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           post_id: post.id,
@@ -105,11 +109,13 @@ function PostCard({ post, userId, onLike, onComment }) {
   };
 
   const handleLike = async () => {
+    const token = getAccessToken();
     try {
       const response = await fetch(`${API_URL}/api/posts/like`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           post_id: post.id,

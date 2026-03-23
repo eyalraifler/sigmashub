@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { API_URL } from "../../lib/config";
+import { getAccessToken } from "../../lib/auth";
 
 // ─── Post Card (inline, reused from PostsFeed style) ──────────────────────────
 
@@ -20,10 +21,11 @@ function PostCard({ post, userId, onLike }) {
   const currentMedia = mediaList[mediaIndex];
 
   const handleFollowToggle = async () => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/users/follow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ follower_id: userId, following_id: post.user_id }),
       });
       const data = await res.json();
@@ -34,10 +36,11 @@ function PostCard({ post, userId, onLike }) {
   };
 
   const handleLike = async () => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/posts/like`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ post_id: post.id, user_id: userId }),
       });
       const data = await res.json();
@@ -68,10 +71,11 @@ function PostCard({ post, userId, onLike }) {
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/posts/comment`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ post_id: post.id, user_id: userId, content: commentText }),
       });
       const data = await res.json();
@@ -213,10 +217,11 @@ function UserCard({ user, userId }) {
   const [isFollowing, setIsFollowing] = useState(user.is_following ?? false);
 
   const handleFollowToggle = async () => {
+    const token = getAccessToken();
     try {
       const res = await fetch(`${API_URL}/api/users/follow`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ follower_id: userId, following_id: user.id }),
       });
       const data = await res.json();

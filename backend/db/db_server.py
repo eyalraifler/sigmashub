@@ -4,6 +4,7 @@ import json
 import struct
 import datetime
 import threading
+from decimal import Decimal
 from dotenv import load_dotenv
 from db_connection import get_conn  # pylint: disable=import-error
 
@@ -15,6 +16,8 @@ class _DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
         if isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
+        if isinstance(obj, Decimal):
+            return int(obj)
         return super().default(obj)
 
 
