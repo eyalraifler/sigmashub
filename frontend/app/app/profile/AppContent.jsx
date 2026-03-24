@@ -885,6 +885,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
           ...prev,
           followers_count: data.following ? prev.followers_count + 1 : prev.followers_count - 1,
         }));
+        fetchAura();
       }
     } catch (err) {
       console.error("Failed to toggle follow:", err);
@@ -1091,6 +1092,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
               );
             setPosts((prev) => update(prev));
             setLikedPosts((prev) => update(prev));
+            fetchAura();
           }}
           onCommentUpdate={(postId) => {
             const update = (list) =>
@@ -1099,6 +1101,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
               );
             setPosts((prev) => update(prev));
             setLikedPosts((prev) => update(prev));
+            fetchAura();
           }}
         />
       )}

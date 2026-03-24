@@ -434,7 +434,8 @@ export default function SearchContent({ userId }) {
 
       {/* Empty state */}
       {showEmpty && (
-        <div className="text-center py-12 text-white/40 text-sm">
+        <div className="text-center py-0 text-white/40 text-lg">
+          <img src="/icons/no_results_icon.png" alt="No results" className="mx-auto mt-4 w-70 " />
           No results for &ldquo;{debouncedQuery}&rdquo;
         </div>
       )}
