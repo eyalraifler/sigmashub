@@ -76,7 +76,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
     <>
       <aside className="w-[280px] h-screen sticky top-0 border-r border-white/10 bg-black">
         <div className="text-2xl text-white mb-5">
-          <Link href="/app" className={`${dancingScript.className} pointy text-3xl font-semibold tracking-wide`}>
+          <Link href="/app" className={`${dancingScript.className} text-3xl font-semibold tracking-wide`}>
             Sigmas Hub
           </Link>
         </div>
