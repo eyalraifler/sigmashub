@@ -15,24 +15,28 @@ const linkNavItems = [
     icon: "/icons/home_blank - white.png",
     iconActive: "/icons/home_filled - white.png",
     exact: true,
+    id: "home-link",
   },
   {
     label: "Search",
     href: "/app/search",
     icon: "/icons/search_blank - white.png",
     iconActive: "/icons/search_filled - white.png",
+    id: "search-link",
   },
   {
     label: "Messages",
     href: "/app/messages",
     icon: "/icons/chat - white.png",
     iconActive: "/icons/chat - white.png",
+    id: "messages-link",
   },
   {
     label: "Create",
     href: "/app/create",
     icon: "/icons/create_blank - white.png",
     iconActive: "/icons/create_filled - white.png",
+    id: "create-link",
   },
 ];
 
@@ -50,6 +54,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
       icon: "/icons/user - white.png",
       iconActive: "/icons/user - white.png",
       exact: true,
+      id: "profile-link",
     },
   ];
 
@@ -88,6 +93,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
             return (
               <Link
                 key={item.label}
+                id={item.id}
                 href={item.href}
                 className={`flex items-center gap-4 px-4 py-3 rounded-xl transition ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
               >
@@ -100,7 +106,8 @@ export default function Sidebar({ username, userId, onLogoClick }) {
           {/* Notifications button */}
           <button
             onClick={handleOpenNotifications}
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition hover:bg-white/5 cursor-pointer"
+            id="notifications-link"
+            className="flex items-center gap-4 px-4 py-3 rounded-xl transition hover:bg-white/5 cursor-pointer"
           >
             <div className="relative">
               <Image src="/icons/notification - white.png" alt="" width={26} height={26} />

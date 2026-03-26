@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
 
     is_private TINYINT(1) NOT NULL DEFAULT 0,
     is_email_verified TINYINT(1) NOT NULL DEFAULT 0,
+    tour_completed TINYINT(1) NOT NULL DEFAULT 0,
 
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 

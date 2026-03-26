@@ -855,13 +855,19 @@ def get_post_comments(post_id: int, limit: int = 50, offset: int = 0):
 def get_user_profile(user_id: int):
     with db() as client:
         row = _one(client.execute(
-            "SELECT id, username, profile_image_url FROM users WHERE id=%s LIMIT 1",
+            "SELECT id, username, profile_image_url, tour_completed FROM users WHERE id=%s LIMIT 1",
             (user_id,),
         )['data'])
     if not row:
         raise HTTPException(status_code=404, detail="User not found")
     return {"ok": True, "user": row}
 
+
+@app.post("/api/users/complete_tour")
+async def complete_tour(current_user_id: int = Depends(get_current_user)):
+    with db() as client:
+        client.execute("UPDATE users SET tour_completed=1 WHERE id=%s", (current_user_id,))
+    return {"ok": True, "message": "Tour marked as completed"}
 
 class UpdateProfileRequest(BaseModel):
     user_id: int
