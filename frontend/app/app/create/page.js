@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import Sidebar from "../../components/Sidebar";
 import AppContent from "./AppContent.jsx";
 
 export default async function CreatePostPage() {
@@ -7,10 +6,5 @@ export default async function CreatePostPage() {
     const userId = cookieStore.get("user_id")?.value;
     const username = cookieStore.get("username")?.value;
 
-    return (
-        <main className="flex bg-black min-h-screen">
-            <Sidebar username={username} userId={userId ? Number(userId) : null} />
-            <AppContent userId={userId ? Number(userId) : null} username={username || "Name"} />
-        </main>
-    );
+    return <AppContent userId={userId ? Number(userId) : null} username={username || "Name"} />;
 }

@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import Sidebar from "../../components/Sidebar";
 import AppContent from "../profile/AppContent";
 
 export default async function UserProfilePage({ params, searchParams }) {
@@ -8,9 +7,7 @@ export default async function UserProfilePage({ params, searchParams }) {
   const { post: postId } = await searchParams;
   const cookieStore = await cookies();
   const userId = cookieStore.get("user_id")?.value;
-  const currentUsername = cookieStore.get("username")?.value;
 
-  // Look up the profile owner by username
   const res = await fetch(
     `http://127.0.0.1:8000/api/users/by-username/${encodeURIComponent(username)}`,
     { cache: "no-store" }
@@ -24,15 +21,12 @@ export default async function UserProfilePage({ params, searchParams }) {
   const profileUserId = data.user.id;
 
   return (
-    <main className="flex bg-black min-h-screen">
-      <Sidebar username={currentUsername} userId={userId ? Number(userId) : null} />
-      <div className="flex-1 overflow-y-auto">
-        <AppContent
-          userId={userId ? Number(userId) : null}
-          profileUserId={profileUserId}
-          initialPostId={postId ? Number(postId) : null}
-        />
-      </div>
-    </main>
+    <div className="flex-1 overflow-y-auto">
+      <AppContent
+        userId={userId ? Number(userId) : null}
+        profileUserId={profileUserId}
+        initialPostId={postId ? Number(postId) : null}
+      />
+    </div>
   );
 }

@@ -9,7 +9,7 @@ const steps = [
   { target: '#notifications-link', content: 'See your notifications here.' },
 ];
 
-export default function AppTour({ initialRun = true }) {
+export default function AppTour({ initialRun = false }) {
     const [run, setRun] = useState(initialRun);
     const [tourKey, setTourKey] = useState(0);
 
