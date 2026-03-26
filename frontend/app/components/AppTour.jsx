@@ -1,5 +1,7 @@
 "use client";
+import { useEffect, useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
+
 const steps = [
   { target: '#create-link',        content: 'Click here to create a new post!' },
   { target: '#search-link',        content: 'Search for other users and posts here.' },
@@ -7,12 +9,26 @@ const steps = [
   { target: '#notifications-link', content: 'See your notifications here.' },
 ];
 
+export default function AppTour({ initialRun = true }) {
+    const [run, setRun] = useState(initialRun);
+    const [tourKey, setTourKey] = useState(0);
 
-export default function AppTour({ userId }) {
-    const handleEvent = async (data) => {
-        console.log("Tour event:", data);
+    useEffect(() => {
+        const handler = () => {
+            setRun(false);
+            setTimeout(() => {
+                setTourKey(k => k + 1);
+                setRun(true);
+            }, 50);
+        };
+        window.addEventListener("startTour", handler);
+        return () => window.removeEventListener("startTour", handler);
+    }, []);
+
+    const handleCallback = async (data) => {
         const { status } = data;
         if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
+            setRun(false);
             await fetch('http://127.0.0.1:8000/api/users/complete_tour', {
                 method: 'POST',
                 headers: {
@@ -20,20 +36,21 @@ export default function AppTour({ userId }) {
                 },
             });
         }
-    }
+    };
 
     return (
         <Joyride
+        key={tourKey}
         steps={steps}
-        run={true}
+        run={run}
         continuous={true}
-        onEvent={handleEvent}
+        callback={handleCallback}
         options={{ skipBeacon: true, buttons: ["back", "close", "primary", "skip"] }}
         styles={{
             options: {
-            zIndex: 10000,
-            primaryColor: "#ffffff",
-            textColor: "#000000",
+                zIndex: 10000,
+                primaryColor: "#ffffff",
+                textColor: "#000000",
             },
         }}
         />

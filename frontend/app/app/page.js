@@ -21,7 +21,7 @@ export default async function AppPage() {
           <PostsFeed userId={userId ? Number(userId) : null} />
         </div>
       </div>
-      {!tourCompleted && <AppTourWrapper userId={userId} />}
+      <AppTourWrapper initialRun={!tourCompleted} />
     </main>
   );
 }
