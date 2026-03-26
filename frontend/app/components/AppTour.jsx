@@ -45,12 +45,16 @@ export default function AppTour({ initialRun = false }) {
         run={run}
         continuous={true}
         callback={handleCallback}
+        disableScrolling={true}
+        disableOverlayClose={true}
+        spotlightClicks={false}
         options={{ skipBeacon: true, buttons: ["back", "close", "primary", "skip"] }}
         styles={{
             options: {
                 zIndex: 10000,
                 primaryColor: "#ffffff",
                 textColor: "#000000",
+                overlayColor: "rgba(0, 0, 0, 0.7)",
             },
         }}
         />
