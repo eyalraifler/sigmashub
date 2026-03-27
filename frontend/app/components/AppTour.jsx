@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from 'react';
 import { Joyride, STATUS } from 'react-joyride';
+import { getAccessToken } from '../lib/auth';
 
 const steps = [
   { target: '#create-link',        content: 'Click here to create a new post!' },
@@ -14,6 +15,12 @@ export default function AppTour({ initialRun = false }) {
     const [tourKey, setTourKey] = useState(0);
 
     useEffect(() => {
+        if (initialRun) {
+            markTourComplete();
+        }
+    }, []);
+
+    useEffect(() => {
         const handler = () => {
             setRun(false);
             setTimeout(() => {
@@ -25,16 +32,24 @@ export default function AppTour({ initialRun = false }) {
         return () => window.removeEventListener("startTour", handler);
     }, []);
 
+    const markTourComplete = async () => {
+        const token = getAccessToken();
+        if (!token) return;
+        try {
+            await fetch('http://127.0.0.1:8000/api/users/complete_tour', {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${token}` },
+            });
+        } catch (e) {
+            console.error('Failed to mark tour complete:', e);
+        }
+    };
+
     const handleCallback = async (data) => {
         const { status } = data;
         if (status === STATUS.FINISHED || status === STATUS.SKIPPED) {
             setRun(false);
-            await fetch('http://127.0.0.1:8000/api/users/complete_tour', {
-                method: 'POST',
-                headers: {
-                    Authorization: `Bearer ${getCookie("access_token")}`,
-                },
-            });
+            await markTourComplete();
         }
     };
 
@@ -59,9 +74,4 @@ export default function AppTour({ initialRun = false }) {
         }}
         />
     );
-}
-
-function getCookie(name) {
-  const match = document.cookie.match(new RegExp("(^| )" + name + "=([^;]+)"));
-  return match ? match[2] : "";
 }
