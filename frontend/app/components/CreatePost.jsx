@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { API_URL } from "../lib/config";
 import { getAccessToken } from "../lib/auth";
 import PostSuccessAnimation from "./PostSuccessAnimation";
+import EmojiPicker from 'emoji-picker-react';
 
 function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -156,6 +157,25 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   const [profileImageUrl, setProfileImageUrl] = useState(null);
   const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const fileInputRef = useRef(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      // If the picker is open AND the click is NOT inside the emojiPickerRef
+      if (showEmojiPicker && emojiPickerRef.current && !emojiPickerRef.current.contains(event.target)) {
+        setShowEmojiPicker(false);
+      }
+    }
+
+    // Bind the event listener
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      // Unbind the event listener on clean up
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [showEmojiPicker]);
+
 
   useEffect(() => {
     if (!userId) return;
@@ -364,16 +384,59 @@ export default function CreatePost({ userId, onPostCreated, username }) {
           </div>
 
           {/* Caption card */}
-          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-2">
-            <label className="block text-white/70 text-sm font-semibold italic">Caption</label>
-            <textarea
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") e.stopPropagation(); }}
-              placeholder="Write a caption..."
-              className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 resize-none"
-              rows={4}
-            />
+          <div className="border border-white/10 bg-white/5 rounded-xl p-4 space-y-2 relative">
+            <div ref={emojiPickerRef}>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-white/70 text-sm font-semibold italic">Caption</label>
+                
+                <button
+                  type="button"
+                  onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                  className="hover:scale-110 transition-transform text-lg"
+                >
+                  😀
+                </button>
+              </div>
+
+              {/* The Picker Container - Now positioned to the right */}
+              {showEmojiPicker && (
+                <div className="absolute top-0 left-[102%] z-50 shadow-2xl hidden lg:block">
+                  <EmojiPicker 
+                    theme="dark"
+                    previewConfig={{ showPreview: false }}
+                    width={350}
+                    height={400}
+                    onEmojiClick={(emojiObject) => {
+                      setCaption((prev) => prev + emojiObject.emoji);
+                    }} 
+                  />
+                </div>
+              )}
+
+              {/* Mobile/Small screen fallback (stays above so it doesn't break layout) */}
+              {showEmojiPicker && (
+                <div className="absolute bottom-full left-0 z-50 mb-2 block lg:hidden">
+                  <EmojiPicker 
+                    theme="dark"
+                    width={300}
+                    height={350}
+                    onEmojiClick={(emojiObject) => {
+                      setCaption((prev) => prev + emojiObject.emoji);
+                    }} 
+                  />
+                </div>
+              )}
+
+              <textarea
+                value={caption}
+                onChange={(e) => setCaption(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") e.stopPropagation(); }}
+                placeholder="Write a caption..."
+                className="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-white/50 focus:outline-none focus:border-blue-500 resize-none"
+                rows={4}
+              />
+            </div>
+            
             <div className="text-white/40 text-xs text-right">{caption.length}</div>
           </div>
 
