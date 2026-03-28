@@ -107,7 +107,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
           <button
             onClick={handleOpenNotifications}
             id="notifications-link"
-            className="flex items-center gap-4 px-4 py-3 rounded-xl transition hover:bg-white/5 cursor-pointer"
+            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition hover:bg-white/5 cursor-pointer"
           >
             <div className="relative">
               <Image src="/icons/notification - white.png" alt="" width={26} height={26} />
