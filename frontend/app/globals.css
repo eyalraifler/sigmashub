@@ -4,6 +4,56 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/*:root {
+  --tour-bg: #ffffff;
+  --tour-text: #000000;
+  --tour-primary: #ff0000;
+  --tour-radius: 12px;
+  --tour-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}*/
+/* 1. THE "CONTINUE / NEXT" BUTTON */
+.framer-tour-btn-primary {
+  background-color: #ff6b6b !important; /* Your Coral Red */
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  border-radius: 0px !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+  font-weight: bold !important;
+  padding: 0 14px !important;
+}
+
+/* 2. THE "BACK" BUTTON */
+.framer-tour-btn-secondary {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  border-radius: 0px !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+  font-weight: bold !important;
+}
+
+/* 3. TARGETING THE FINISH BUTTON SPECIFICALLY */
+/* If you want the final button to be a different color (e.g. Green) */
+.framer-tour-footer button:last-child:has(svg[class*="check"]) {
+  background-color: #4ade80 !important;
+}
+
+/* 4. THE CLOSE (X) BUTTON */
+.framer-tour-close {
+  color: #000000 !important;
+  border: 2px solid #000000 !important;
+  background: white !important;
+  border-radius: 0px !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+}
+
+/* 5. HOVER EFFECTS (Optional but recommended) */
+.framer-tour-btn:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: 5px 5px 0px #000000 !important;
+  opacity: 1 !important; /* Prevents the default fade effect */
+}
+
 :root {
   font-family: Arial, Helvetica, sans-serif;
   --background: oklch(1 0 0);

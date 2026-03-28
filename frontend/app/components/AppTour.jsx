@@ -1,14 +1,54 @@
 "use client";
+
+import { TourProvider, useTour } from 'modern-tour';
+import 'modern-tour';
 import { useEffect, useState } from 'react';
-import { Joyride, STATUS } from 'react-joyride';
+//import { Joyride, STATUS } from 'react-joyride';
 import { getAccessToken } from '../lib/auth';
 
 const steps = [
+  { 
+    target: '#create-link',
+    title: 'Create Post',
+    content: 'Click here to create a new post!',
+    position: 'right'
+  },
+  {
+    target: '#search-link',
+    content: 'Search for other users and posts here.',
+    position: 'right'
+  },
+  {
+    target: '#profile-link',
+    content: 'View and edit your profile here.',
+    position: 'right'
+  },
+  {
+    target: '#notifications-link',
+    content: 'See your notifications here.',
+    position: 'right'
+  }
+];
+
+
+const steps2 = [
   { target: '#create-link',        content: 'Click here to create a new post!' },
   { target: '#search-link',        content: 'Search for other users and posts here.' },
   { target: '#profile-link',       content: 'View and edit your profile here.' },
   { target: '#notifications-link', content: 'See your notifications here.' },
 ];
+
+
+// Step 3: Trigger the tour
+function MyApp() {
+  const { start } = useTour();
+  
+  return (
+    <button onClick={() => start()}>
+      Start Tour
+    </button>
+  );
+}
 
 export default function AppTour({ initialRun = false }) {
     const [run, setRun] = useState(initialRun);
@@ -45,7 +85,7 @@ export default function AppTour({ initialRun = false }) {
         }
     };
 
-    useEffect(() => {
+    {/* useEffect(() => {
         if (!run) return;
         const origFocus = HTMLElement.prototype.focus;
         HTMLElement.prototype.focus = function(options) {
@@ -55,18 +95,21 @@ export default function AppTour({ initialRun = false }) {
     }, [run]);
 
     useEffect(() => {
-        if (!run) return;
-        const scrollY = window.scrollY;
-        document.documentElement.style.overflow = 'hidden';
-        document.body.style.position = 'fixed';
-        document.body.style.top = `-${scrollY}px`;
-        document.body.style.width = '100%';
+        if (!run) {
+            document.body.style.overflow = '';
+            return;
+        }
+        const origFocus = HTMLElement.prototype.focus;
+        const origScrollIntoView = Element.prototype.scrollIntoView;
+        document.body.style.overflow = 'hidden';
+        HTMLElement.prototype.focus = function(options) {
+            origFocus.call(this, { ...options, preventScroll: true });
+        };
+        Element.prototype.scrollIntoView = function() {};
         return () => {
-            document.documentElement.style.overflow = '';
-            document.body.style.position = '';
-            document.body.style.top = '';
-            document.body.style.width = '';
-            window.scrollTo(0, scrollY);
+            HTMLElement.prototype.focus = origFocus;
+            Element.prototype.scrollIntoView = origScrollIntoView;
+            document.body.style.overflow = '';
         };
     }, [run]);
 
@@ -76,27 +119,21 @@ export default function AppTour({ initialRun = false }) {
             setRun(false);
             await markTourComplete();
         }
-    };
+    };*/}
 
     return (
-        <Joyride
-        key={tourKey}
-        steps={steps}
-        run={run}
-        continuous={true}
-        callback={handleCallback}
-        disableScrolling={true}
-        disableOverlayClose={true}
-        spotlightClicks={false}
-        options={{ skipBeacon: true, buttons: ["back", "close", "primary", "skip"] }}
-        styles={{
-            options: {
-                zIndex: 10000,
-                primaryColor: "#ffffff",
-                textColor: "#000000",
-                overlayColor: "rgba(0, 0, 0, 0.7)",
-            },
-        }}
-        />
+        <TourProvider class="neo-theme" options={{ 
+            steps, 
+            animation: 'smooth',
+            labels: {
+                next: 'Continue',
+                prev: 'Back',
+                finish: 'Got it!',
+                skip: 'Skip Tour'
+
+            }
+              }}>
+            <MyApp />
+        </TourProvider>
     );
 }

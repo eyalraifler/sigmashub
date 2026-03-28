@@ -17,7 +17,6 @@ export default async function AppLayout({ children }) {
       <Sidebar username={username} userId={userId ? Number(userId) : null} />
       {children}
       <AppTourWrapper initialRun={!tourCompleted} />
-      <TourFloatButton />
     </main>
   );
 }
