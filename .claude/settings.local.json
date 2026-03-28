@@ -9,7 +9,8 @@
       "Bash(find /c/Users/eyalr/sigmashub -name *.py -not -path */venv/* -not -path */__pycache__/*)",
       "Bash(node -e \"require\\(''enhanced-resolve''\\)\")",
       "Bash(node -e \"require\\(''@tailwindcss/node''\\)\")",
-      "Bash(node -e \"require\\(''''next/package.json''''\\)\")"
+      "Bash(node -e \"require\\(''''next/package.json''''\\)\")",
+      "Bash(npm install:*)"
     ]
   }
 }

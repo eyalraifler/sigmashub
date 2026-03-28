@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { API_URL } from "../lib/config";
 import { getAccessToken } from "../lib/auth";
+import PostSuccessAnimation from "./PostSuccessAnimation";
 
 function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   const [mediaIndex, setMediaIndex] = useState(0);
@@ -153,6 +154,7 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
   const [error, setError] = useState("");
   const [profileImageUrl, setProfileImageUrl] = useState(null);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -287,6 +289,7 @@ export default function CreatePost({ userId, onPostCreated, username }) {
       setTags([]);
       setTagInput("");
       setMediaFiles([]);
+      setShowSuccessAnimation(true);
 
       if (onPostCreated) onPostCreated(data);
     } catch (err) {
@@ -298,6 +301,10 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   };
 
   return (
+    <>
+    {showSuccessAnimation && (
+      <PostSuccessAnimation onDone={() => setShowSuccessAnimation(false)} />
+    )}
     <form onSubmit={handleSubmit}>
       <div className="flex gap-6 items-start">
 
@@ -464,5 +471,6 @@ export default function CreatePost({ userId, onPostCreated, username }) {
 
       </div>
     </form>
+    </>
   );
 }
