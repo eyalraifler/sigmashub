@@ -1578,3 +1578,32 @@ def mark_notifications_read(payload: dict, current_user_id: int = Depends(get_cu
     except Exception as e:
         print(f"Mark notifications read error: {e}")
         raise HTTPException(status_code=500, detail="Server error")
+
+
+# -----------------------
+# chats and messages
+# -----------------------
+
+@app.get("/api/{user_id}/chats")
+def get_user_chats(user_id: int):
+    try:
+        with db() as client:
+            chats = client.execute(
+                """
+                SELECT c.id AS chat_id, c.is_group, c.name AS chat_name, c.created_at,
+                       u.id AS other_user_id, u.username AS other_username, u.profile_image_url AS other_profile_image_url,
+                       (SELECT m.message_text FROM messages m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message,
+                       (SELECT m.created_at FROM messages m WHERE m.chat_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_time
+                FROM chats c
+                JOIN chat_participants cp ON c.id = cp.chat_id
+                JOIN users u ON (c.is_group = FALSE AND ((cp.user_id = %s AND u.id = cp.other_user_id) OR (cp.other_user_id = %s AND u.id = cp.user_id)))
+                WHERE cp.user_id = %s OR cp.other_user_id = %s
+                GROUP BY c.id
+                ORDER BY last_message_time DESC
+                """,
+                (user_id, user_id, user_id, user_id),
+            )['data']
+        return {"ok": True, "chats": chats}
+    except Exception as e:
+        print(f"Get user chats error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")

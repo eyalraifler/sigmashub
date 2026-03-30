@@ -124,3 +124,39 @@ CREATE TABLE IF NOT EXISTS notifications (
     INDEX idx_notifications_user_id (user_id),
     INDEX idx_notifications_created_at (created_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- 1. Conversations: The "Container" for a chat
+CREATE TABLE IF NOT EXISTS chats (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    name VARCHAR(255) NULL, -- Null for 1-to-1 chats, named for group chats
+    is_group TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 2. Chat Members: Who is in which chat?
+CREATE TABLE IF NOT EXISTS chat_members (
+    chat_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (chat_id, user_id),
+    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_member_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3. Messages: The actual content
+CREATE TABLE IF NOT EXISTS messages (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    chat_id BIGINT UNSIGNED NOT NULL,
+    sender_id BIGINT UNSIGNED NOT NULL,
+    message_text TEXT NOT NULL,
+    message_type ENUM('text', 'image', 'video', 'system') DEFAULT 'text',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (id),
+    FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_msg_chat (chat_id),
+    INDEX idx_msg_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
