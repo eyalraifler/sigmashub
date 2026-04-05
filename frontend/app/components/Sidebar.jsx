@@ -44,6 +44,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadMessages, setUnreadMessages] = useState(0);
 
   const profileHref = username ? `/app/${username}` : "/app/profile";
   const navItems = [
@@ -72,6 +73,22 @@ export default function Sidebar({ username, userId, onLogoClick }) {
     return () => clearInterval(interval);
   }, [userId]);
 
+  useEffect(() => {
+    if (!userId) return;
+    const fetchUnreadMessages = () => {
+      const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/)?.[1];
+      fetch(`${API_URL}/api/chats/unread-count`, {
+        headers: token ? { Authorization: `Bearer ${decodeURIComponent(token)}` } : {},
+      })
+        .then((r) => r.json())
+        .then((data) => { if (data.ok) setUnreadMessages(data.count); })
+        .catch(() => {});
+    };
+    fetchUnreadMessages();
+    const interval = setInterval(fetchUnreadMessages, 30000);
+    return () => clearInterval(interval);
+  }, [userId]);
+
   const handleOpenNotifications = () => {
     setShowNotifications(true);
     setUnreadCount(0);
@@ -97,7 +114,14 @@ export default function Sidebar({ username, userId, onLogoClick }) {
                 href={item.href}
                 className={`flex items-center gap-4 px-4 py-3 rounded-xl transition ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
               >
-                <Image src={isActive ? item.iconActive : item.icon} alt="" width={26} height={26} />
+                <div className="relative">
+                  <Image src={isActive ? item.iconActive : item.icon} alt="" width={26} height={26} />
+                  {item.label === "Messages" && unreadMessages > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {unreadMessages > 9 ? "9+" : unreadMessages}
+                    </span>
+                  )}
+                </div>
                 <span className={`text-lg ${isActive ? "font-semibold text-white" : "text-white/80"}`}>{item.label}</span>
               </Link>
             );

@@ -218,6 +218,52 @@ def toggle_follow_route(payload: FollowRequest, current_user_id: int = Depends(g
         raise HTTPException(status_code=500, detail="Server error")
 
 
+class PrivacyRequest(BaseModel):
+    is_private: bool = None
+    messages_privacy: str = None  # "everyone" | "followers"
+
+
+@router.get("/users/{user_id}/privacy")
+def get_privacy(user_id: int, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    with db() as client:
+        row = client.execute(
+            "SELECT is_private, messages_privacy FROM users WHERE id=%s LIMIT 1",
+            (user_id,),
+        )['data']
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"ok": True, **row[0]}
+
+
+@router.put("/users/{user_id}/privacy")
+def update_privacy(user_id: int, payload: PrivacyRequest, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    updates = {}
+    if payload.is_private is not None:
+        updates["is_private"] = 1 if payload.is_private else 0
+    if payload.messages_privacy is not None:
+        if payload.messages_privacy not in ("everyone", "followers"):
+            raise HTTPException(status_code=400, detail="Invalid messages_privacy value")
+        updates["messages_privacy"] = payload.messages_privacy
+    if not updates:
+        return {"ok": True}
+    set_clause = ", ".join(f"{k}=%s" for k in updates)
+    try:
+        with db() as client:
+            with client.transaction() as tx:
+                tx.execute(
+                    f"UPDATE users SET {set_clause} WHERE id=%s",
+                    (*updates.values(), user_id),
+                )
+    except Exception as e:
+        print(f"Update privacy error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+    return {"ok": True}
+
+
 @router.post("/users/complete_tour")
 async def complete_tour(current_user_id: int = Depends(get_current_user)):
     with db() as client:

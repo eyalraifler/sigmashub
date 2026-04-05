@@ -741,11 +741,34 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const [isFollowing, setIsFollowing] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
   const [aura, setAura] = useState(null);
   const [showAuraModal, setShowAuraModal] = useState(false);
 
+  const router = useRouter();
   const isOwnProfile = userId === profileUserId;
+
+  const handleMessage = async () => {
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${API_URL}/api/chats`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          member_ids: [userId, profileUserId],
+          is_group: false,
+        }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        router.push(`/app/messages?chat=${data.chat_id}`);
+      }
+    } catch (err) {
+      console.error("Message error:", err);
+    }
+  };
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -969,7 +992,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                   Edit profile
                 </button>
                 <button
-                  onClick={() => setShowSettings(true)}
+                  onClick={() => router.push("/app/settings")}
                   className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition"
                 >
                   <img src="/icons/settings_white.png" alt="settings" className="w-5 h-5 object-contain" />
@@ -1012,7 +1035,10 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                 >
                   {isFollowing ? "Following" : "Follow"}
                 </button>
-                <button className="px-5 py-1.5 bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition">
+                <button
+                  onClick={handleMessage}
+                  className="px-5 py-1.5 bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition"
+                >
                   Message
                 </button>
               </>
@@ -1143,38 +1169,6 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
         />
       )}
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center"
-          onClick={() => setShowSettings(false)}
-        >
-          <div
-            className="bg-[#111] border border-white/10 rounded-2xl w-[360px] overflow-hidden"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
-              <h3 className="text-white font-semibold text-base">Settings</h3>
-              <button onClick={() => setShowSettings(false)} className="text-white/50 hover:text-white transition">
-                <img src="/icons/close - white.png" alt="close" className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Options */}
-            <div className="p-3">
-              <form action={logout}>
-                <button
-                  type="submit"
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-400 hover:bg-white/5 transition text-left text-sm font-semibold"
-                >
-                  Log out
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
