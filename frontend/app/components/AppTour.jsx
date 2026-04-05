@@ -23,6 +23,11 @@ const steps = [
     position: 'right'
   },
   {
+    target: '#messages-link',
+    content: 'Chat with your friends here.',
+    position: 'right'
+  },
+  {
     target: '#notifications-link',
     content: 'See your notifications here.',
     position: 'right'
