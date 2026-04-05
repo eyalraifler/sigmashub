@@ -13,9 +13,11 @@ export default async function AppLayout({ children }) {
   const tourCompleted = userData.user?.tour_completed ?? true;
 
   return (
-    <main className="flex bg-black min-h-screen">
+    <main className="bg-black min-h-screen">
       <Sidebar username={username} userId={userId ? Number(userId) : null} />
-      {children}
+      <div style={{ paddingLeft: 68 }} className="min-h-screen flex flex-col">
+        {children}
+      </div>
       <AppTourWrapper initialRun={!tourCompleted} />
       <TourFloatButton />
     </main>

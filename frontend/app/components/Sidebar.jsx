@@ -45,6 +45,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
+  const [expanded, setExpanded] = useState(false);
 
   const profileHref = username ? `/app/${username}` : "/app/profile";
   const navItems = [
@@ -59,7 +60,6 @@ export default function Sidebar({ username, userId, onLogoClick }) {
     },
   ];
 
-  // Fetch unread count on mount and periodically
   useEffect(() => {
     if (!userId) return;
     const fetchUnread = () => {
@@ -96,44 +96,82 @@ export default function Sidebar({ username, userId, onLogoClick }) {
 
   return (
     <>
-      <aside className="w-[280px] h-screen sticky top-0 border-r border-white/10 bg-black">
-        <div className="text-2xl text-white mb-5">
-          <Link href="/app" className={`${dancingScript.className} text-3xl font-semibold tracking-wide`}>
-            Sigmas Hub
+      <aside
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        className="fixed top-0 left-0 h-screen border-r border-white/10 bg-black flex flex-col overflow-hidden z-40 transition-all duration-300 ease-in-out"
+        style={{ width: expanded ? 240 : 68 }}
+      >
+        {/* Logo */}
+        <div className="flex items-center h-16 px-4 shrink-0 overflow-hidden">
+          <Link href="/app" className="shrink-0">
+            <Image
+              src="/icons/sigmashub_logo.png"
+              alt="Sigmas Hub"
+              width={36}
+              height={36}
+            />
           </Link>
+          <div
+            className="overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap"
+            style={{ maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0 }}
+          >
+            <Link
+              href="/app"
+              className={`${dancingScript.className} text-2xl font-semibold tracking-wide text-white ml-3`}
+            >
+              Sigmas Hub
+            </Link>
+          </div>
         </div>
 
-        {/* Buttons */}
-        <nav className="px-4 space-y-1">
+        {/* Nav */}
+        <nav className="flex flex-col gap-1 px-2 flex-1">
           {navItems.map((item) => {
-            const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+            const isActive = item.exact
+              ? pathname === item.href
+              : pathname.startsWith(item.href);
             return (
               <Link
                 key={item.label}
                 id={item.id}
                 href={item.href}
-                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition ${isActive ? "bg-white/10" : "hover:bg-white/5"}`}
+                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
+                  isActive ? "bg-white/10" : "hover:bg-white/5"
+                }`}
               >
-                <div className="relative">
-                  <Image src={isActive ? item.iconActive : item.icon} alt="" width={26} height={26} />
+                <div className="relative shrink-0">
+                  <Image
+                    src={isActive ? item.iconActive : item.icon}
+                    alt=""
+                    width={26}
+                    height={26}
+                  />
                   {item.label === "Messages" && unreadMessages > 0 && (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
                       {unreadMessages > 9 ? "9+" : unreadMessages}
                     </span>
                   )}
                 </div>
-                <span className={`text-lg ${isActive ? "font-semibold text-white" : "text-white/80"}`}>{item.label}</span>
+                <span
+                  className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
+                  style={{ maxWidth: expanded ? 160 : 0, opacity: expanded ? 1 : 0 }}
+                >
+                  <span className={`text-base ${isActive ? "font-semibold text-white" : "text-white/80"}`}>
+                    {item.label}
+                  </span>
+                </span>
               </Link>
             );
           })}
 
-          {/* Notifications button */}
+          {/* Notifications */}
           <button
             onClick={handleOpenNotifications}
             id="notifications-link"
-            className="w-full flex items-center gap-4 px-4 py-3 rounded-xl transition hover:bg-white/5 cursor-pointer"
+            className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-white/5 cursor-pointer"
           >
-            <div className="relative">
+            <div className="relative shrink-0">
               <Image src="/icons/notification - white.png" alt="" width={26} height={26} />
               {unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -141,7 +179,12 @@ export default function Sidebar({ username, userId, onLogoClick }) {
                 </span>
               )}
             </div>
-            <span className="text-lg text-white/80">Notifications</span>
+            <span
+              className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
+              style={{ maxWidth: expanded ? 160 : 0, opacity: expanded ? 1 : 0 }}
+            >
+              <span className="text-base text-white/80">Notifications</span>
+            </span>
           </button>
         </nav>
       </aside>
