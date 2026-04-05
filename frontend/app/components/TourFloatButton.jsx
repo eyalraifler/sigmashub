@@ -1,6 +1,11 @@
 "use client";
 
+import { usePathname } from "next/navigation";
+
 export default function TourFloatButton() {
+    const pathname = usePathname();
+    if (pathname !== "/app") return null;
+
     return (
         <button
             onClick={() => window.dispatchEvent(new Event("startTour"))}
