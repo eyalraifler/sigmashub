@@ -4,6 +4,7 @@ import { TourProvider, useTour } from 'modern-tour';
 import 'modern-tour';
 import { useEffect } from 'react';
 import { getAccessToken } from '../lib/auth';
+import { API_URL } from '../lib/config';
 
 const steps = [
   {
@@ -38,7 +39,7 @@ const markTourComplete = async () => {
     const token = getAccessToken();
     if (!token) return;
     try {
-        await fetch('http://127.0.0.1:8000/api/users/complete_tour', {
+        await fetch(`${API_URL}/api/users/complete_tour`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
         });

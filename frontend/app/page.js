@@ -28,24 +28,22 @@ export default async function Home() {
       <section className="relative overflow-hidden black_pointy">
 
 
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-8 pb-24 pt-16 text-center">
-          {/* 2. Replaced the first line with HoverText */}
-          <HoverText 
-            text="LET'S FEED" 
-            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[10rem] leading-none`}
+        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 sm:px-8 pb-24 pt-12 sm:pt-16 text-center">
+          <HoverText
+            text="LET'S FEED"
+            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[3rem] sm:text-[5rem] md:text-[7rem] lg:text-[10rem] leading-none`}
           />
 
-          {/* 3. Replaced the second line with HoverText */}
           <HoverText
             text="YOUR AURA"
             delay={1.26}
-            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[10rem] leading-none text-white -mt-6`}
+            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[3rem] sm:text-[5rem] md:text-[7rem] lg:text-[10rem] leading-none text-white -mt-2 sm:-mt-4 md:-mt-6`}
           />
 
 
 
 
-          <p className="mt-1 max-w-xl text-xl text-white/80">
+          <p className="mt-2 sm:mt-1 max-w-xl text-base sm:text-xl text-white/80">
             A <span className="font-semibold text-white">cutting-edge</span> social platform designed{" "}
             <span className="font-semibold text-white">for sigmas</span>, by sigmas
           </p>
