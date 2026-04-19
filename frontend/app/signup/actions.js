@@ -38,14 +38,19 @@ export async function handleOnboarding(prevState, formData) {
   const bio = formData.get("bio") || "";
   const avatarData = formData.get("avatar_data") || "";
 
-  const res = await fetch("http://127.0.0.1:8000/api/signup/complete_signup", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, username, password, avatar_path: avatarData, bio }),
-    cache: "no-store",
-  });
+  let res, data;
+  try {
+    res = await fetch("http://127.0.0.1:8000/api/signup/complete_signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, username, password, avatar_path: avatarData, bio }),
+      cache: "no-store",
+    });
+    data = await res.json().catch(() => ({}));
+  } catch {
+    return { ok: false, error: "Could not reach the server. Please try again." };
+  }
 
-  const data = await res.json().catch(() => ({}));
   if (!res.ok) return { ok: false, error: data.detail || "Profile setup failed" };
 
   const token = data.token;

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 from typing import Optional
 
 from database import db
-from utils.auth import get_current_user
+from utils.auth import get_current_user, SECRET_KEY, ALGORITHM
+from jose import JWTError, jwt
 from db.queries.chats import (
     get_user_chats, get_chat_by_id, get_chat_members, is_chat_member,
     get_chat_messages, get_new_messages, create_chat, add_chat_member,
@@ -77,7 +78,18 @@ def create_new_chat(req: CreateChatRequest, current_user_id: int = Depends(get_c
 
 
 @router.get("/chats/unread-count")
-def unread_count(current_user_id: int = Depends(get_current_user)):
+def unread_count(request: Request):
+    token = None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+    if not token:
+        return {"ok": True, "count": 0}
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        current_user_id = int(payload["sub"])
+    except (JWTError, KeyError, ValueError):
+        return {"ok": True, "count": 0}
     try:
         with db() as client:
             count = get_unread_chat_count(client, current_user_id)

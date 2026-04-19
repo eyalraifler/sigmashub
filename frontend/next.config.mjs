@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactCompiler: true,
+  serverActions: {
+    bodySizeLimit: "5mb",
+  },
   async rewrites() {
     return [
       {

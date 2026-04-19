@@ -46,6 +46,7 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const profileHref = username ? `/app/${username}` : "/app/profile";
   const navItems = [
@@ -59,6 +60,11 @@ export default function Sidebar({ username, userId, onLogoClick }) {
       id: "profile-link",
     },
   ];
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (!userId) return;
@@ -92,101 +98,142 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   const handleOpenNotifications = () => {
     setShowNotifications(true);
     setUnreadCount(0);
+    setMobileOpen(false);
   };
 
-  return (
-    <>
-      <aside
-        onMouseEnter={() => setExpanded(true)}
-        onMouseLeave={() => setExpanded(false)}
-        className="fixed top-0 left-0 h-screen border-r border-white/10 bg-black flex flex-col overflow-hidden z-40 transition-all duration-300 ease-in-out"
-        style={{ width: expanded ? 240 : 68 }}
-      >
-        {/* Logo */}
-        <div className="flex items-center h-16 px-4 shrink-0 overflow-hidden">
-          <Link href="/app" className="shrink-0">
-            <Image
-              src="/icons/sigmashub_logo.png"
-              alt="Sigmas Hub"
-              width={36}
-              height={36}
-            />
-          </Link>
-          <div
-            className="overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap"
-            style={{ maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0 }}
-          >
-            <Link
-              href="/app"
-              className={`${dancingScript.className} text-2xl font-semibold tracking-wide text-white ml-3`}
-            >
-              Sigmas Hub
-            </Link>
-          </div>
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-col gap-1 px-2 flex-1">
-          {navItems.map((item) => {
-            const isActive = item.exact
-              ? pathname === item.href
-              : pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.label}
-                id={item.id}
-                href={item.href}
-                className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
-                  isActive ? "bg-white/10" : "hover:bg-white/5"
-                }`}
-              >
-                <div className="relative shrink-0">
-                  <Image
-                    src={isActive ? item.iconActive : item.icon}
-                    alt=""
-                    width={26}
-                    height={26}
-                  />
-                  {item.label === "Messages" && unreadMessages > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                      {unreadMessages > 9 ? "9+" : unreadMessages}
-                    </span>
-                  )}
-                </div>
-                <span
-                  className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
-                  style={{ maxWidth: expanded ? 160 : 0, opacity: expanded ? 1 : 0 }}
-                >
-                  <span className={`text-base ${isActive ? "font-semibold text-white" : "text-white/80"}`}>
-                    {item.label}
-                  </span>
-                </span>
-              </Link>
-            );
-          })}
-
-          {/* Notifications */}
-          <button
-            onClick={handleOpenNotifications}
-            id="notifications-link"
-            className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-white/5 cursor-pointer"
+  const navContent = (isMobile = false) => (
+    <nav className="flex flex-col gap-1 px-2 flex-1">
+      {navItems.map((item) => {
+        const isActive = item.exact
+          ? pathname === item.href
+          : pathname.startsWith(item.href);
+        const isExpanded = isMobile || expanded;
+        return (
+          <Link
+            key={item.label}
+            id={item.id}
+            href={item.href}
+            onClick={() => isMobile && setMobileOpen(false)}
+            className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-colors ${
+              isActive ? "bg-white/10" : "hover:bg-white/5"
+            }`}
           >
             <div className="relative shrink-0">
-              <Image src="/icons/notification - white.png" alt="" width={26} height={26} />
-              {unreadCount > 0 && (
+              <Image
+                src={isActive ? item.iconActive : item.icon}
+                alt=""
+                width={26}
+                height={26}
+              />
+              {item.label === "Messages" && unreadMessages > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {unreadCount > 9 ? "9+" : unreadCount}
+                  {unreadMessages > 9 ? "9+" : unreadMessages}
                 </span>
               )}
             </div>
             <span
               className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
-              style={{ maxWidth: expanded ? 160 : 0, opacity: expanded ? 1 : 0 }}
+              style={{ maxWidth: isExpanded ? 160 : 0, opacity: isExpanded ? 1 : 0 }}
             >
-              <span className="text-base text-white/80">Notifications</span>
+              <span className={`text-base ${isActive ? "font-semibold text-white" : "text-white/80"}`}>
+                {item.label}
+              </span>
             </span>
+          </Link>
+        );
+      })}
+
+      {/* Notifications */}
+      <button
+        onClick={handleOpenNotifications}
+        id="notifications-link"
+        className="flex items-center gap-3 px-3 py-3 rounded-xl transition-colors hover:bg-white/5 cursor-pointer"
+      >
+        <div className="relative shrink-0">
+          <Image src="/icons/notification - white.png" alt="" width={26} height={26} />
+          {unreadCount > 0 && (
+            <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </span>
+          )}
+        </div>
+        <span
+          className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"
+          style={{ maxWidth: (isMobile || expanded) ? 160 : 0, opacity: (isMobile || expanded) ? 1 : 0 }}
+        >
+          <span className="text-base text-white/80">Notifications</span>
+        </span>
+      </button>
+    </nav>
+  );
+
+  return (
+    <>
+      {/* ── Desktop sidebar (md+) ─────────────────────────────────────── */}
+      <aside
+        onMouseEnter={() => setExpanded(true)}
+        onMouseLeave={() => setExpanded(false)}
+        className="hidden md:flex fixed top-0 left-0 h-screen border-r border-white/10 bg-black flex-col overflow-hidden z-40 transition-all duration-300 ease-in-out"
+        style={{ width: expanded ? 240 : 68 }}
+      >
+        <div className="flex items-center h-16 px-4 shrink-0 overflow-hidden">
+          <Link href="/app" className="shrink-0">
+            <Image src="/icons/sigmashub_logo.png" alt="Sigmas Hub" width={36} height={36} />
+          </Link>
+          <div
+            className="overflow-hidden transition-all duration-300 ease-in-out whitespace-nowrap"
+            style={{ maxWidth: expanded ? 180 : 0, opacity: expanded ? 1 : 0 }}
+          >
+            <Link href="/app" className={`${dancingScript.className} text-2xl font-semibold tracking-wide text-white ml-3`}>
+              Sigmas Hub
+            </Link>
+          </div>
+        </div>
+        {navContent(false)}
+      </aside>
+
+      {/* ── Mobile: hamburger button (< md) ──────────────────────────── */}
+      <button
+        onClick={() => setMobileOpen(true)}
+        className="md:hidden fixed top-3 left-3 z-40 p-2 rounded-xl bg-black/70 backdrop-blur"
+        aria-label="Open menu"
+      >
+        <Image src="/icons/sigmashub_logo.png" alt="Menu" width={28} height={28} />
+      </button>
+
+      {/* ── Mobile: backdrop ─────────────────────────────────────────── */}
+      {mobileOpen && (
+        <div
+          className="md:hidden fixed inset-0 bg-black/60 z-40"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile: slide-in drawer ───────────────────────────────────── */}
+      <aside
+        className={`md:hidden fixed top-0 left-0 h-screen bg-black border-r border-white/10 z-50 flex flex-col overflow-hidden transition-transform duration-300 ease-in-out ${
+          mobileOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+        style={{ width: 240 }}
+      >
+        <div className="flex items-center justify-between h-16 px-4 shrink-0">
+          <div className="flex items-center gap-3">
+            <Link href="/app" onClick={() => setMobileOpen(false)} className="shrink-0">
+              <Image src="/icons/sigmashub_logo.png" alt="Sigmas Hub" width={36} height={36} />
+            </Link>
+            <Link href="/app" onClick={() => setMobileOpen(false)} className={`${dancingScript.className} text-2xl font-semibold tracking-wide text-white`}>
+              Sigmas Hub
+            </Link>
+          </div>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="text-white/50 hover:text-white text-xl leading-none p-1"
+            aria-label="Close menu"
+          >
+            ✕
           </button>
-        </nav>
+        </div>
+        {navContent(true)}
       </aside>
 
       {showNotifications && (

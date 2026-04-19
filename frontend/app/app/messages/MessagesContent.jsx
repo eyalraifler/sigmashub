@@ -283,6 +283,7 @@ export default function MessagesContent({ userId, username, initialChatId = null
   const [showMembers, setShowMembers] = useState(false);
   const [addUserQuery, setAddUserQuery] = useState("");
   const [addUserResults, setAddUserResults] = useState([]);
+  const [mobileView, setMobileView] = useState("list"); // "list" | "chat"
 
   const messagesEndRef = useRef(null);
   const lastMsgIdRef = useRef(0);
@@ -314,6 +315,7 @@ export default function MessagesContent({ userId, username, initialChatId = null
     async (chatId) => {
       setActiveChatId(chatId);
       activeChatIdRef.current = chatId;
+      setMobileView("chat");
       setShowMembers(false);
       setAddUserQuery("");
       setAddUserResults([]);
@@ -481,7 +483,7 @@ export default function MessagesContent({ userId, username, initialChatId = null
   return (
     <div className="flex-1 flex overflow-hidden h-screen">
       {/* Left Panel */}
-      <div className="w-[300px] border-r border-white/10 flex flex-col shrink-0">
+      <div className={`${mobileView === "chat" ? "hidden" : "flex"} md:flex w-full md:w-[300px] border-r border-white/10 flex-col shrink-0`}>
         <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between">
           <h1 className="text-white font-semibold text-lg">Messages</h1>
           <button
@@ -527,7 +529,7 @@ export default function MessagesContent({ userId, username, initialChatId = null
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className={`${mobileView === "list" ? "hidden" : "flex"} md:flex flex-1 flex-col overflow-hidden`}>
         {!activeChat ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <div className="w-16 h-16 rounded-full bg-white/5 flex items-center justify-center">
@@ -553,8 +555,17 @@ export default function MessagesContent({ userId, username, initialChatId = null
         ) : (
           <>
             {/* Chat Header */}
-            <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="px-4 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setMobileView("list")}
+                  className="md:hidden text-white/60 hover:text-white mr-1"
+                  aria-label="Back"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </button>
                 <Avatar
                   src={activeChat.display_image}
                   username={activeChat.display_name}

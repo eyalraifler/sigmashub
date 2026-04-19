@@ -40,7 +40,7 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
               <h1 className="text-4xl font-bold mb-2 text-white">Welcome Back!</h1>
               <p className="mb-8 text-gray-400">
                 Don't have an account yet?{" "}
-                <a href="/signup" className="text-purple-400 hover:text-purple-300">
+                <a href="/signup" className="text-[#EE7951] hover:text-[#f5a882]">
                   signup
                 </a>
               </p>
@@ -54,7 +54,7 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#EE7951] transition-colors"
                 />
 
                 <div className="relative">
@@ -64,7 +64,7 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
                     type={show ? "text" : "password"}
                     placeholder="Password"
                     required
-                    className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                    className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-[#EE7951] transition-colors"
                   />
                   <button
                     type="button"
@@ -82,7 +82,7 @@ export default function LoginForm({ loginAction, verifyAction, resendAction }) {
                 <button
                   type="submit"
                   disabled={loginPending}
-                  className="w-full py-3 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-600 disabled:opacity-50 shadow-lg shadow-purple-500/30 transition-colors"
+                  className="w-full py-3 bg-[#EE7951] text-white font-semibold rounded-lg hover:bg-[#d4673f] disabled:opacity-50 shadow-lg shadow-[#EE7951]/30 transition-colors"
                 >
                   {loginPending ? "Checking..." : "Continue"}
                 </button>
@@ -195,7 +195,7 @@ function VerificationStep({ email, verifyFormAction, verifyPending, verifyState,
               onChange={(e) => handleChange(index, e.target.value)}
               onKeyDown={(e) => handleKeyDown(index, e)}
               onPaste={handlePaste}
-              className="w-12 h-14 text-center text-2xl font-bold bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500 transition-colors"
+              className="w-12 h-14 text-center text-2xl font-bold bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#EE7951] transition-colors"
             />
           ))}
         </div>
@@ -203,7 +203,7 @@ function VerificationStep({ email, verifyFormAction, verifyPending, verifyState,
         <button
           type="submit"
           disabled={verifyPending || code.join("").length !== 6}
-          className="w-full py-3 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-600 disabled:opacity-50 shadow-lg shadow-purple-500/30 transition-colors"
+          className="w-full py-3 bg-[#EE7951] text-white font-semibold rounded-lg hover:bg-[#d4673f] disabled:opacity-50 shadow-lg shadow-[#EE7951]/30 transition-colors"
         >
           {verifyPending ? "Verifying..." : "Verify & Log In"}
         </button>
@@ -226,7 +226,7 @@ function VerificationStep({ email, verifyFormAction, verifyPending, verifyState,
             type="button"
             onClick={handleResendClick}
             disabled={resendPending}
-            className="text-purple-400 hover:text-purple-300 disabled:opacity-50"
+            className="text-[#EE7951] hover:text-[#f5a882] disabled:opacity-50"
           >
             {resendPending ? "Sending..." : "Try again"}
           </button>

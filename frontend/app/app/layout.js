@@ -26,7 +26,7 @@ export default async function AppLayout({ children }) {
   return (
     <main className="bg-black min-h-screen">
       <Sidebar username={username} userId={userId ? Number(userId) : null} />
-      <div style={{ paddingLeft: 68 }} className="min-h-screen flex flex-col">
+      <div className="md:pl-[68px] pt-14 md:pt-0 min-h-screen flex flex-col">
         {children}
       </div>
       <AppTourWrapper initialRun={!tourCompleted} />

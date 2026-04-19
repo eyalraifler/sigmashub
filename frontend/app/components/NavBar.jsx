@@ -69,7 +69,7 @@ export default function NavBar() {
 
 
 
-            <Link href="/login" className="pointy rounded-full border border-orange-300/70 px-4 py-2 text-orange-200 hover:bg-white/5">
+            <Link href="/login" className="pointy rounded-full border border-[#EE7951] px-4 py-2 text-[#EE7951] hover:bg-[#EE7951]/10">
               Login
             </Link>
           </div>

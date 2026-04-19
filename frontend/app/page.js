@@ -31,13 +31,13 @@ export default async function Home() {
         <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 sm:px-8 pb-24 pt-12 sm:pt-16 text-center">
           <HoverText
             text="LET'S FEED"
-            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[3rem] sm:text-[5rem] md:text-[7rem] lg:text-[10rem] leading-none`}
+            className={`${leagueSpartan.className} pointy font-black text-[#EE7951] text-[4rem] sm:text-[6rem] md:text-[7rem] lg:text-[10rem] leading-none`}
           />
 
           <HoverText
             text="YOUR AURA"
             delay={1.26}
-            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[3rem] sm:text-[5rem] md:text-[7rem] lg:text-[10rem] leading-none text-white -mt-2 sm:-mt-4 md:-mt-6`}
+            className={`${leagueSpartan.className} pointy relative inline-block cursor-pointer origin-center font-black text-[4rem] sm:text-[6rem] md:text-[7rem] lg:text-[10rem] leading-none text-white -mt-2 sm:-mt-4 md:-mt-6`}
           />
 
 

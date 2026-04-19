@@ -64,7 +64,7 @@ function EditProfileModal({ profile, userId, onClose, onSaved }) {
       onClick={onClose}
     >
       <div
-        className="bg-[#111] border border-white/10 rounded-xl w-[420px] flex flex-col"
+        className="bg-[#111] border border-white/10 rounded-xl w-full max-w-[420px] mx-4 flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -185,7 +185,7 @@ function UserListModal({ title, users, currentUserId, onClose, onFollowToggle })
       onClick={onClose}
     >
       <div
-        className="bg-[#111] border border-white/10 rounded-xl w-[360px] max-h-[500px] flex flex-col"
+        className="bg-[#111] border border-white/10 rounded-xl w-full max-w-[360px] mx-4 max-h-[500px] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
@@ -343,13 +343,10 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
     }
   };
 
-  const cardHeight = "min(620px, 88vh)";
-  const cardWidth = "min(900px, 88vw)";
-
   return (
     <div
       style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.92)" }}
-      className="flex items-center justify-center"
+      className="flex items-center justify-center p-2 sm:p-4"
       onClick={onClose}
     >
       {/* Prev arrow */}
@@ -357,7 +354,7 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
         <button
           style={{ position: "absolute", left: 20, zIndex: 10 }}
           onClick={(e) => { e.stopPropagation(); goTo(currentIndex - 1); }}
-          className="text-white bg-black/60 hover:bg-black/90 rounded-full w-10 h-10 flex items-center justify-center transition"
+          className="hidden sm:flex text-white bg-black/60 hover:bg-black/90 rounded-full w-10 h-10 items-center justify-center transition"
         >
           <img src="/icons/chevron-sign-left.png" alt="prev" className="w-5 h-5" />
         </button>
@@ -365,12 +362,11 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
 
       {/* Card */}
       <div
-        style={{ width: cardWidth, height: cardHeight, display: "flex" }}
-        className="bg-[#111] border border-white/10 rounded-xl overflow-hidden"
+        className="bg-[#111] border border-white/10 rounded-xl overflow-hidden flex flex-col sm:flex-row w-full max-w-[900px] max-h-[92vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Left – media (square crop) */}
-        <div style={{ width: "55%", flexShrink: 0, position: "relative" }} className="bg-black flex items-center justify-center">
+        {/* Media */}
+        <div className="w-full sm:w-[55%] shrink-0 relative bg-black flex items-center justify-center aspect-square sm:aspect-auto sm:h-auto" style={{ minHeight: 0 }}>
           {currentMedia.media_type === "image" ? (
             <img
               src={`${API_URL}${currentMedia.media_url}`}
@@ -415,7 +411,7 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
         </div>
 
         {/* Right – info panel */}
-        <div style={{ width: "45%", display: "flex", flexDirection: "column", height: "100%" }} className="border-l border-white/10">
+        <div className="flex flex-col flex-1 border-t sm:border-t-0 sm:border-l border-white/10 overflow-hidden">
           {/* Header */}
           <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 flex-shrink-0">
             <Link href={`/app/${post.username}`} onClick={onClose} className="flex items-center gap-3 flex-1 min-w-0">
@@ -434,7 +430,7 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
           </div>
 
           {/* Scrollable: caption + tags + comments */}
-          <div style={{ flex: 1, overflowY: "auto" }} className="px-4 py-3 space-y-3">
+          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {post.caption && (
               <p className="text-sm">
                 <Link href={`/app/${post.username}`} onClick={onClose} className="text-white font-semibold hover:underline">{post.username}</Link>{" "}
@@ -604,7 +600,7 @@ function PostsGrid({ posts, isOwnProfile, onDeletePost, onPostClick }) {
           onClick={() => setConfirmDeleteId(null)}
         >
           <div
-            className="bg-[#111] border border-white/10 rounded-xl w-[320px] overflow-hidden"
+            className="bg-[#111] border border-white/10 rounded-xl w-full max-w-[320px] mx-4 overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="px-5 py-5 border-b border-white/10 text-center">
@@ -663,7 +659,7 @@ function AuraModal({ aura, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-[#111] border border-white/10 rounded-2xl w-[420px] flex flex-col overflow-hidden"
+        className="bg-[#111] border border-white/10 rounded-2xl w-full max-w-[420px] mx-4 flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -950,11 +946,11 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     activeTab === "posts" ? posts : activeTab === "liked" ? likedPosts : [];
 
   return (
-    <div className="max-w-[900px] mx-auto px-8 py-10">
+    <div className="max-w-[900px] mx-auto px-4 py-6 md:px-8 md:py-10">
       {/* Profile Header */}
-      <div className="flex items-start gap-16 mb-12">
+      <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-16 mb-8 sm:mb-12 text-center sm:text-left">
         {/* Avatar */}
-        <div className="w-[150px] h-[150px] rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
+        <div className="w-24 h-24 sm:w-[150px] sm:h-[150px] rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
           {profile.profile_image_url ? (
             <img
               src={`${API_URL}${profile.profile_image_url}`}
@@ -971,8 +967,8 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
         </div>
 
         {/* Info */}
-        <div className="flex-1 space-y-4 pt-2">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex-1 space-y-4 pt-2 w-full">
+          <div className="flex items-center gap-3 flex-wrap justify-center sm:justify-start">
             <h1 className="text-white text-2xl font-light tracking-wide">{profile.username}</h1>
             {aura && (
               <button onClick={() => setShowAuraModal(true)} className="group" title={`${aura.tier.name} — ${aura.aura.toLocaleString()} pts`}>
@@ -1045,7 +1041,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
             )}
           </div>
 
-          <div className="flex gap-8">
+          <div className="flex gap-6 justify-center sm:justify-start">
             <span className="text-white text-sm">
               <span className="font-semibold">{profile.posts_count}</span>{" "}
               <span className="text-white/60">posts</span>

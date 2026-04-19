@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { useActionState } from "react";
+import { useState, useRef, useEffect, useTransition } from "react";
 
 const DEFAULT_AVATARS = [
   "/icons/default_avatar_1.png", "/icons/default_avatar_2.png", "/icons/default_avatar_3.png",
@@ -10,13 +9,13 @@ const DEFAULT_AVATARS = [
 
 export default function SignupForm({ signupAction, onboardingAction, onStepSuccess }) {
   const [show, setShow] = useState(false);
-  const [state, formAction, pending] = useActionState(signupAction, null);
-  
+  const [state, setState] = useState(null);
+  const [isPending, startTransition] = useTransition();
+
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
-  // Notify parent to hide images when step 1 is successful
   useEffect(() => {
     if (state?.ok && state?.credentials) {
       if (onStepSuccess) onStepSuccess();
@@ -43,6 +42,15 @@ export default function SignupForm({ signupAction, onboardingAction, onStepSucce
     localStorage.setItem("signup_form_data", JSON.stringify(newData));
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await signupAction(null, formData);
+      if (result) setState(result);
+    });
+  };
+
   if (state?.ok && state?.credentials) {
     return (
       <div className="w-full animate-in fade-in duration-700">
@@ -57,27 +65,27 @@ export default function SignupForm({ signupAction, onboardingAction, onStepSucce
         ← Back to website
       </a>
       <h1 className="text-4xl font-bold mb-2 text-white">Create an account</h1>
-      <p className="mb-8 text-gray-400">Already have an account? <a href="/login" className="text-purple-400 hover:text-purple-300">log in</a></p>
+      <p className="mb-8 text-gray-400">Already have an account? <a href="/login" className="text-[#EE7951] hover:text-[#f5a882]">log in</a></p>
 
-      <form action={formAction} className="space-y-4">
-        <input name="username" type="text" placeholder="Username" value={username} onChange={(e) => handleInputChange("username", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500" />
-        <input name="email" type="email" placeholder="Email" value={email} onChange={(e) => handleInputChange("email", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500" />
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input name="username" type="text" placeholder="Username" value={username} onChange={(e) => handleInputChange("username", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#EE7951]" />
+        <input name="email" type="email" placeholder="Email" value={email} onChange={(e) => handleInputChange("email", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#EE7951]" />
         <div className="relative">
-          <input name="password" type={show ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => handleInputChange("password", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500" />
-          <button 
-            type="button" 
-            onClick={() => setShow(!show)} 
+          <input name="password" type={show ? "text" : "password"} placeholder="Password" value={password} onChange={(e) => handleInputChange("password", e.target.value)} required className="w-full px-4 py-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#EE7951]" />
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
             className="absolute right-3 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
           >
-            <img 
-              src={show ? "/icons/open_eye.png" : "/icons/closed_eye.png"} 
-              alt={show ? "Hide" : "Show"} 
+            <img
+              src={show ? "/icons/open_eye.png" : "/icons/closed_eye.png"}
+              alt={show ? "Hide" : "Show"}
               className="w-6 h-6 object-contain"
             />
           </button>
         </div>
-        <button type="submit" disabled={pending} className="w-full py-3 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-600 disabled:opacity-50 shadow-lg shadow-purple-500/30">
-          {pending ? "Creating..." : "Create account"}
+        <button type="submit" disabled={isPending} className="w-full py-3 bg-[#EE7951] text-white font-semibold rounded-lg hover:bg-[#EE7951] disabled:opacity-50 shadow-lg shadow-[#EE7951]/30">
+          {isPending ? "Creating..." : "Create account"}
         </button>
         {state?.error && <p className="text-red-400 text-sm mt-2">{state.error}</p>}
       </form>
@@ -86,7 +94,8 @@ export default function SignupForm({ signupAction, onboardingAction, onStepSucce
 }
 
 function OnboardingInline({ credentials, action }) {
-  const [state, formAction, pending] = useActionState(action, null);
+  const [state, setState] = useState(null);
+  const [isPending, startTransition] = useTransition();
   const [selectedAvatar, setSelectedAvatar] = useState(DEFAULT_AVATARS[0]);
   const [uploadedImage, setUploadedImage] = useState(null);
   const fileInputRef = useRef(null);
@@ -99,20 +108,40 @@ function OnboardingInline({ credentials, action }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Validate that it's an image
     if (!file.type.startsWith('image/')) {
       alert('Please upload an image file');
       return;
     }
 
-    // Read the file and convert to base64
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64String = reader.result;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be under 10MB');
+      return;
+    }
+
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const MAX = 400;
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      const base64String = canvas.toDataURL('image/jpeg', 0.8);
       setUploadedImage(base64String);
       setSelectedAvatar(base64String);
     };
-    reader.readAsDataURL(file);
+    img.src = objectUrl;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await action(null, formData);
+      if (result) setState(result);
+    });
   };
 
   return (
@@ -120,27 +149,25 @@ function OnboardingInline({ credentials, action }) {
       <a href="/" className="fixed top-7 right-5 px-4 py-2 bg-white/10 backdrop-blur-sm text-white rounded-full text-sm hover:bg-white/20 transition-all z-10">
         ← Back to website
       </a>
-      
+
       <h2 className="text-3xl font-bold mb-2 text-white text-left">Complete your profile</h2>
       <p className="mb-6 text-gray-400 text-left">Choose a profile picture and add a bio.</p>
 
-      <form action={formAction} className="space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-6">
         <input type="hidden" name="email" value={credentials.email} />
         <input type="hidden" name="username" value={credentials.username} />
         <input type="hidden" name="password" value={credentials.password} />
         <input type="hidden" name="avatar_data" value={selectedAvatar || ''} />
-        
+
         <div className="flex flex-col items-center space-y-4">
-          {/* Large preview of selected avatar */}
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-purple-500 shadow-lg">
+          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-[#EE7951] shadow-lg">
             <img src={selectedAvatar} alt="Selected avatar" className="w-full h-full object-cover" />
           </div>
 
-          {/* Upload button */}
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="px-4 py-2 bg-purple-600 text-white text-sm font-semibold rounded-lg hover:bg-purple-500 transition-colors"
+            className="px-4 py-2 bg-[#EE7951] text-white text-sm font-semibold rounded-lg hover:bg-[#d4673f] transition-colors"
           >
             Upload Your Own Image
           </button>
@@ -152,19 +179,18 @@ function OnboardingInline({ credentials, action }) {
             className="hidden"
           />
 
-          {/* Default avatar options */}
           <div className="grid grid-cols-6 gap-3 w-full">
             {DEFAULT_AVATARS.map((path, i) => (
-              <button 
-                key={i} 
-                type="button" 
+              <button
+                key={i}
+                type="button"
                 onClick={() => {
                   setSelectedAvatar(path);
                   setUploadedImage(null);
                 }}
                 className={`w-12 h-12 rounded-full overflow-hidden border-2 transition-all ${
-                  selectedAvatar === path && !uploadedImage 
-                    ? 'border-purple-500 scale-110' 
+                  selectedAvatar === path && !uploadedImage
+                    ? 'border-[#EE7951] scale-110'
                     : 'border-gray-600 hover:border-gray-400'
                 }`}
               >
@@ -173,22 +199,22 @@ function OnboardingInline({ credentials, action }) {
             ))}
           </div>
         </div>
-        
-        <textarea 
-          name="bio" 
-          placeholder="Bio (optional)" 
-          className="w-full p-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-purple-500" 
-          rows={4} 
+
+        <textarea
+          name="bio"
+          placeholder="Bio (optional)"
+          className="w-full p-3 bg-[#1a1a2e] border border-gray-700 rounded-lg text-white focus:outline-none focus:border-[#EE7951]"
+          rows={4}
         />
-        
-        <button 
-          type="submit" 
-          disabled={pending} 
-          className="w-full py-3 bg-purple-600 text-white font-bold rounded-lg hover:bg-purple-500 disabled:opacity-50 transition-colors"
+
+        <button
+          type="submit"
+          disabled={isPending}
+          className="w-full py-3 bg-[#EE7951] text-white font-bold rounded-lg hover:bg-[#d4673f] disabled:opacity-50 transition-colors"
         >
-          {pending ? "Finishing..." : "Complete Signup"}
+          {isPending ? "Finishing..." : "Complete Signup"}
         </button>
-        
+
         {state?.error && <p className="text-red-400 text-sm mt-2">{state.error}</p>}
       </form>
     </div>

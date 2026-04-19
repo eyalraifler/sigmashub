@@ -6,8 +6,8 @@ export default async function AppPage() {
   const userId = cookieStore.get("user_id")?.value;
 
   return (
-    <div className="flex-1 px-10 py-8">
-      <div className="max-w-[520px] mx-auto">
+    <div className="flex-1 px-4 py-4 md:px-10 md:py-8">
+      <div className="max-w-[520px] mx-auto w-full">
         <PostsFeed userId={userId ? Number(userId) : null} />
       </div>
     </div>
