@@ -423,7 +423,7 @@ function PostCard({ post, userId, isAdmin, onLike, onComment, onDelete }) {
  * @param {*} props.refreshTrigger - Any value — changing it triggers a feed re-fetch.
  * @returns {JSX.Element}
  */
-export default function PostsFeed({ userId, refreshTrigger }) {
+export default function PostsFeed({ userId, refreshTrigger, mode = "recent" }) {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -439,11 +439,14 @@ export default function PostsFeed({ userId, refreshTrigger }) {
   const fetchPosts = async () => {
     setIsLoading(true);
     try {
-      const url = userId
-        ? `${API_URL}/api/posts/feed?user_id=${userId}`
-        : `${API_URL}/api/posts/feed`;
+      const endpoint =
+        mode === "for-you" && userId
+          ? `${API_URL}/api/posts/for-you?user_id=${userId}`
+          : userId
+          ? `${API_URL}/api/posts/feed?user_id=${userId}`
+          : `${API_URL}/api/posts/feed`;
 
-      const response = await fetch(url);
+      const response = await fetch(endpoint);
       const data = await response.json();
 
       if (data.ok) {

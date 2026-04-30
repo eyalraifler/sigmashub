@@ -8,7 +8,7 @@ from utils.auth import get_current_user
 from utils.media import save_post_media, normalize_tags
 from db.queries.sql import _one
 from db.queries.posts import (
-    get_post_by_id, get_feed_posts,
+    get_post_by_id, get_feed_posts, get_for_you_posts,
     enrich_posts, get_tags_for_posts, get_media_for_posts,
     insert_post, insert_post_media, insert_post_tags, delete_post,
     get_post_likes, toggle_like,
@@ -142,6 +142,31 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
 
     except Exception as e:
         print(f"Get posts feed error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+@router.get("/posts/for-you")
+def get_for_you_feed(user_id: int, limit: int = 20, offset: int = 0):
+    """Personalised For You feed scored by recency, follow graph, tag affinity, and popularity."""
+    try:
+        with db() as client:
+            posts = get_for_you_posts(client, user_id, limit, offset)
+            enrich_posts(client, posts, viewer_id=user_id)
+
+        results = []
+        for post in posts:
+            items = [MediaItemResponse(**m) for m in post["media_items"]]
+            results.append(PostResponse(
+                **{k: post[k] for k in ("id", "user_id", "username", "profile_image_url",
+                                        "caption", "media_url", "media_type", "likes_count",
+                                        "comments_count", "created_at", "tags",
+                                        "is_liked_by_user", "is_following")},
+                media_items=items,
+            ))
+        return {"ok": True, "posts": results}
+
+    except Exception as e:
+        print(f"For You feed error: {e}")
         raise HTTPException(status_code=500, detail="Server error")
 
 

@@ -1,3 +1,6 @@
+import math
+from datetime import datetime, timezone
+
 from .sql import placeholders, _one
 from .users import get_followed_user_ids
 
@@ -322,3 +325,118 @@ def get_tag_suggestions(client, q: str, limit: int) -> list:
         """,
         (f"{q}%", limit),
     )['data']
+
+
+# ---------------------------------------------------------------------------
+# For You feed
+# ---------------------------------------------------------------------------
+
+def _score_post(post: dict, followed_ids: set, liked_tags: set,
+                liked_post_ids: set, tags_by_post: dict) -> float:
+    """
+    Score a post for the For You feed.
+
+    Points breakdown (max ~115):
+      - Recency     0–50  half-life 24 h
+      - Follow      35    post is from someone the viewer follows
+      - Tag match   0–30  10 pts per tag overlap with user's liked tags (capped)
+      - Popularity  ~log  likes × 5 + comments × 3 (log scale)
+      - Seen        -10   post already liked by viewer (they've seen it)
+    """
+    # Recency: halves every 24 h
+    created = post["created_at"]
+    if hasattr(created, "replace"):
+        created = created.replace(tzinfo=timezone.utc)
+    age_h = (datetime.now(timezone.utc) - created).total_seconds() / 3600
+    recency = 50.0 * math.exp(-age_h * math.log(2) / 24)
+
+    follow_bonus = 35.0 if post["user_id"] in followed_ids else 0.0
+
+    post_tags = tags_by_post.get(post["id"], set())
+    tag_bonus = min(len(post_tags & liked_tags) * 10, 30.0)
+
+    popularity = (
+        math.log1p(post["likes_count"]) * 5
+        + math.log1p(post["comments_count"]) * 3
+    )
+
+    seen_penalty = -10.0 if post["id"] in liked_post_ids else 0.0
+
+    return recency + follow_bonus + tag_bonus + popularity + seen_penalty
+
+
+def get_for_you_posts(client, user_id: int, limit: int, offset: int) -> list:
+    """
+    Return a personalised feed sorted by relevance score.
+
+    Pulls up to 300 posts from the last 14 days, scores each one
+    using recency, follow graph, tag affinity, and popularity, then
+    returns the slice [offset : offset+limit].
+    """
+    # 1. Candidate posts — recent window
+    posts = client.execute(
+        """
+        SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+               p.likes_count, p.comments_count, p.created_at,
+               u.username, u.profile_image_url
+        FROM posts p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+        ORDER BY p.created_at DESC
+        LIMIT 300
+        """,
+    )['data']
+
+    if not posts:
+        return []
+
+    # 2. Follow graph
+    followed_ids = {
+        r["following_id"]
+        for r in client.execute(
+            "SELECT following_id FROM follows WHERE follower_id=%s",
+            (user_id,),
+        )['data']
+    }
+
+    # 3. Tags the viewer has engaged with via likes
+    liked_tags = {
+        r["tag"]
+        for r in client.execute(
+            """
+            SELECT DISTINCT pt.tag
+            FROM likes l
+            JOIN post_tags pt ON pt.post_id = l.post_id
+            WHERE l.user_id = %s
+            """,
+            (user_id,),
+        )['data']
+    }
+
+    # 4. Posts the viewer already liked
+    liked_post_ids = {
+        r["post_id"]
+        for r in client.execute(
+            "SELECT post_id FROM likes WHERE user_id=%s",
+            (user_id,),
+        )['data']
+    }
+
+    # 5. Tags per post (batch)
+    post_ids = [p["id"] for p in posts]
+    ph = placeholders(post_ids)
+    tags_by_post: dict = {}
+    for r in client.execute(
+        f"SELECT post_id, tag FROM post_tags WHERE post_id IN ({ph})",
+        post_ids,
+    )['data']:
+        tags_by_post.setdefault(r["post_id"], set()).add(r["tag"])
+
+    # 6. Score, sort, paginate
+    scored = sorted(
+        posts,
+        key=lambda p: _score_post(p, followed_ids, liked_tags,
+                                   liked_post_ids, tags_by_post),
+        reverse=True,
+    )
+    return scored[offset: offset + limit]

@@ -497,6 +497,31 @@ def update_privacy(user_id: int, payload: PrivacyRequest, current_user_id: int =
     return {"ok": True}
 
 
+@router.delete("/users/{user_id}")
+def delete_user_route(user_id: int, current_user_id: int = Depends(get_current_user)):
+    """Delete a user account. Admin only. Cannot delete yourself or other admins."""
+    try:
+        with db() as client:
+            actor = get_user_by_id(client, current_user_id)
+            if not actor or not actor.get("is_admin"):
+                raise HTTPException(status_code=403, detail="Admin access required")
+            if user_id == current_user_id:
+                raise HTTPException(status_code=400, detail="Cannot delete your own account this way")
+            target = get_user_by_id(client, user_id)
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+            if target.get("is_admin"):
+                raise HTTPException(status_code=403, detail="Cannot delete another admin")
+            with client.transaction() as tx:
+                tx.execute("DELETE FROM users WHERE id=%s", (user_id,))
+        return {"ok": True}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Delete user error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
 @router.post("/users/complete_tour")
 async def complete_tour(current_user_id: int = Depends(get_current_user)):
     """Mark the onboarding tour as completed for the authenticated user.

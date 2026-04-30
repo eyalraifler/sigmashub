@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { API_URL } from "../../lib/config";
 import { logout } from "../../logout/actions";
-import { getAccessToken } from "../../lib/auth";
+import { getAccessToken, getIsAdmin } from "../../lib/auth";
 
 // ─── Edit Profile Modal ───────────────────────────────────────────────────────
 
@@ -747,9 +747,14 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const [linkCopied, setLinkCopied] = useState(false);
   const [aura, setAura] = useState(null);
   const [showAuraModal, setShowAuraModal] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const router = useRouter();
   const isOwnProfile = userId === profileUserId;
+
+  useEffect(() => {
+    setIsAdmin(getIsAdmin());
+  }, []);
 
   const handleMessage = async () => {
     const token = getAccessToken();
@@ -976,6 +981,21 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     setShowEditModal(false);
   };
 
+  const handleDeleteUser = async () => {
+    if (!window.confirm(`Delete user "${profile.username}"? This cannot be undone.`)) return;
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${API_URL}/api/users/${profileUserId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) router.push("/app");
+    } catch (err) {
+      console.error("Failed to delete user:", err);
+    }
+  };
+
   const handleDeletePost = async (postId) => {
     const token = getAccessToken();
     try {
@@ -1110,6 +1130,14 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                 >
                   Message
                 </button>
+                {isAdmin && (
+                  <button
+                    onClick={handleDeleteUser}
+                    className="px-5 py-1.5 bg-red-600/80 text-white rounded-lg font-semibold text-sm hover:bg-red-600 transition"
+                  >
+                    Delete user
+                  </button>
+                )}
               </>
             )}
           </div>
