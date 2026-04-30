@@ -12,7 +12,7 @@ from db.queries.users import (
     create_follow_request, delete_follow_request, has_follow_request,
     get_pending_follow_requests, approve_follow_request,
 )
-from db.queries.posts import get_posts_by_user, get_liked_posts_by_user, enrich_posts
+from db.queries.posts import get_posts_by_user, get_liked_posts_by_user, get_saved_posts_by_user, enrich_posts
 
 router = APIRouter(prefix="/api")
 
@@ -250,6 +250,18 @@ def get_user_liked_posts(user_id: int, viewer_id: int = None):
         enrich_posts(client, posts, viewer_id=None)
         for post in posts:
             post["is_liked_by_user"] = True
+    return {"ok": True, "posts": posts}
+
+
+@router.get("/users/{user_id}/saved_posts")
+def get_user_saved_posts(user_id: int, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    with db() as client:
+        posts = get_saved_posts_by_user(client, user_id)
+        if not posts:
+            return {"ok": True, "posts": []}
+        enrich_posts(client, posts, viewer_id=user_id)
     return {"ok": True, "posts": posts}
 
 

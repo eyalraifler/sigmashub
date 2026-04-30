@@ -730,6 +730,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [likedPosts, setLikedPosts] = useState([]);
+  const [savedPosts, setSavedPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
   const [isLoading, setIsLoading] = useState(true);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -811,6 +812,20 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
       if (data.ok) setPosts(data.posts);
     } catch (err) {
       console.error("Failed to fetch posts:", err);
+    }
+  };
+
+  const fetchSavedPosts = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/${profileUserId}/saved_posts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) setSavedPosts(data.posts);
+    } catch (err) {
+      console.error("Failed to fetch saved posts:", err);
     }
   };
 
@@ -908,6 +923,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     if (tab === "liked" && likedPosts.length === 0) fetchLikedPosts();
+    if (tab === "saved" && savedPosts.length === 0) fetchSavedPosts();
   };
 
   const handleOpenFollowers = () => {
@@ -939,12 +955,15 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
       setFollowing((prev) => updateList(prev));
 
       if (targetUserId === profileUserId) {
+        const wasFollowing = isFollowing;
         setIsFollowing(data.following);
         setIsFollowRequested(data.requested ?? false);
-        setProfile((prev) => ({
-          ...prev,
-          followers_count: data.following ? prev.followers_count + 1 : prev.followers_count - 1,
-        }));
+        // Only adjust the count when an actual follow/unfollow happened (not a request)
+        if (data.following && !wasFollowing && !data.requested) {
+          setProfile((prev) => ({ ...prev, followers_count: prev.followers_count + 1 }));
+        } else if (!data.following && wasFollowing) {
+          setProfile((prev) => ({ ...prev, followers_count: prev.followers_count - 1 }));
+        }
         fetchAura();
       }
     } catch (err) {
@@ -984,7 +1003,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   }
 
   const displayPosts =
-    activeTab === "posts" ? posts : activeTab === "liked" ? likedPosts : [];
+    activeTab === "posts" ? posts : activeTab === "liked" ? likedPosts : activeTab === "saved" ? savedPosts : [];
 
   return (
     <div className="max-w-[900px] mx-auto px-4 py-6 md:px-8 md:py-10">
@@ -1122,7 +1141,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
         <div className="flex">
           {[
             { id: "posts", label: "Posts" },
-            { id: "saved", label: "Saved" },
+            ...(isOwnProfile ? [{ id: "saved", label: "Saved" }] : []),
             { id: "liked", label: "Liked" },
           ].map((tab) => (
             <button
@@ -1142,9 +1161,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
 
       {/* Content */}
       <div className="mt-1">
-        {activeTab === "saved" ? (
-          <div className="text-white/40 text-center py-20">Saved posts coming soon</div>
-        ) : profile.is_locked ? (
+        {profile.is_locked ? (
           <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/40">
             <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" />

@@ -76,7 +76,7 @@ def login(payload: LoginRequest):
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     code = generate_verification_code()
-    store_verification(row["email"], {"id": row["id"], "username": row["username"], "email": row["email"]}, code)
+    store_verification(row["email"], {"id": row["id"], "username": row["username"], "email": row["email"], "is_admin": bool(row.get("is_admin", 0))}, code)
 
     try:
         send_verification_email(row["email"], code)

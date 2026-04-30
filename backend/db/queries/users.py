@@ -3,7 +3,7 @@ from .sql import placeholders, _one
 
 def get_user_by_id(client, user_id: int):
     return _one(client.execute(
-        "SELECT id, username, profile_image_url, tour_completed FROM users WHERE id=%s LIMIT 1",
+        "SELECT id, username, profile_image_url, tour_completed, is_admin FROM users WHERE id=%s LIMIT 1",
         (user_id,),
     )['data'])
 
@@ -16,9 +16,9 @@ def get_user_by_username(client, username: str):
 
 
 def get_user_auth_row(client, username: str):
-    """Returns id, username, email, password_hash — used during login."""
+    """Returns id, username, email, password_hash, is_admin — used during login."""
     return _one(client.execute(
-        "SELECT id, username, email, password_hash FROM users WHERE username=%s LIMIT 1",
+        "SELECT id, username, email, password_hash, is_admin FROM users WHERE username=%s LIMIT 1",
         (username,),
     )['data'])
 

@@ -13,7 +13,7 @@ from db.queries.posts import (
     insert_post, insert_post_media, insert_post_tags, delete_post,
     get_post_likes, toggle_like,
     get_post_comments, get_comment_by_id, insert_comment, delete_comment,
-    get_tag_suggestions,
+    get_tag_suggestions, toggle_save_post,
 )
 from db.queries.users import get_user_by_id, get_follower_ids
 from db.queries.notifications import notify_followers_of_post
@@ -215,13 +215,15 @@ def delete_post_route(post_id: int, current_user_id: int = Depends(get_current_u
     """
     try:
         with db() as client:
+            actor = get_user_by_id(client, current_user_id)
+            is_admin = actor and bool(actor.get("is_admin", 0))
             with client.transaction() as tx:
                 post = _one(tx.execute(
                     "SELECT id, user_id FROM posts WHERE id=%s LIMIT 1", (post_id,)
                 )['data'])
                 if not post:
                     raise HTTPException(status_code=404, detail="Post not found")
-                if post["user_id"] != current_user_id:
+                if post["user_id"] != current_user_id and not is_admin:
                     raise HTTPException(status_code=403, detail="Not authorized to delete this post")
                 delete_post(tx, post_id)
         return {"ok": True}
@@ -231,6 +233,22 @@ def delete_post_route(post_id: int, current_user_id: int = Depends(get_current_u
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         print(f"Delete post error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+@router.post("/posts/{post_id}/save")
+def save_post(post_id: int, current_user_id: int = Depends(get_current_user)):
+    try:
+        with db() as client:
+            with client.transaction() as tx:
+                if not tx.execute("SELECT id FROM posts WHERE id=%s LIMIT 1", (post_id,))['data']:
+                    raise HTTPException(status_code=404, detail="Post not found")
+                saved = toggle_save_post(tx, current_user_id, post_id)
+        return {"ok": True, "saved": saved}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Save post error: {e}")
         raise HTTPException(status_code=500, detail="Server error")
 
 

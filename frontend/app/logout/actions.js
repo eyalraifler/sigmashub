@@ -17,5 +17,6 @@ export async function logout() {
   cookieStore.delete("access_token");
   cookieStore.delete("username");
   cookieStore.delete("user_id");
+  cookieStore.delete("is_admin");
   redirect("/");
 }

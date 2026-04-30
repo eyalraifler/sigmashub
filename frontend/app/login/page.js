@@ -74,6 +74,14 @@ export default function LoginPage() {
       maxAge: 60 * 60 * 24 * 7,
     });
 
+    cookieStore.set("is_admin", data.user?.is_admin ? "1" : "0", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
     redirect("/app");
   }
 
@@ -131,6 +139,14 @@ export default function LoginPage() {
     });
 
     cookieStore.set("user_id", String(data.user?.id || ""), {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 7,
+    });
+
+    cookieStore.set("is_admin", data.user?.is_admin ? "1" : "0", {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",

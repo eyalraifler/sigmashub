@@ -52,8 +52,52 @@ def get_liked_post_ids(client, user_id: int, post_ids: list) -> set:
     }
 
 
+def get_saved_post_ids(client, user_id: int, post_ids: list) -> set:
+    """Returns set of post IDs that the user has saved."""
+    if not user_id or not post_ids:
+        return set()
+    ph = placeholders(post_ids)
+    return {
+        row["post_id"]
+        for row in client.execute(
+            f"SELECT post_id FROM saved_posts WHERE user_id=%s AND post_id IN ({ph})",
+            [user_id] + post_ids,
+        )['data']
+    }
+
+
+def toggle_save_post(tx, user_id: int, post_id: int) -> bool:
+    """Toggle save on a post. Returns True if now saved, False if unsaved."""
+    existing = tx.execute(
+        "SELECT id FROM saved_posts WHERE user_id=%s AND post_id=%s LIMIT 1",
+        (user_id, post_id),
+    )['data']
+    if existing:
+        tx.execute("DELETE FROM saved_posts WHERE user_id=%s AND post_id=%s", (user_id, post_id))
+        return False
+    else:
+        tx.execute("INSERT INTO saved_posts (user_id, post_id) VALUES (%s, %s)", (user_id, post_id))
+        return True
+
+
+def get_saved_posts_by_user(client, user_id: int) -> list:
+    return client.execute(
+        """
+        SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type,
+               p.likes_count, p.comments_count, p.created_at,
+               u.username, u.profile_image_url
+        FROM saved_posts sp
+        JOIN posts p ON sp.post_id = p.id
+        JOIN users u ON p.user_id = u.id
+        WHERE sp.user_id = %s
+        ORDER BY sp.created_at DESC
+        """,
+        (user_id,),
+    )['data']
+
+
 def enrich_posts(client, posts: list, viewer_id: int = None) -> list:
-    """Attaches tags, media_items, is_liked_by_user, and is_following to each post dict in-place."""
+    """Attaches tags, media_items, is_liked_by_user, is_saved, and is_following to each post dict in-place."""
     if not posts:
         return posts
 
@@ -61,6 +105,7 @@ def enrich_posts(client, posts: list, viewer_id: int = None) -> list:
     tags_map = get_tags_for_posts(client, post_ids)
     media_map = get_media_for_posts(client, post_ids)
     liked_ids = get_liked_post_ids(client, viewer_id, post_ids) if viewer_id else set()
+    saved_ids = get_saved_post_ids(client, viewer_id, post_ids) if viewer_id else set()
 
     followed_ids = set()
     if viewer_id:
@@ -74,6 +119,7 @@ def enrich_posts(client, posts: list, viewer_id: int = None) -> list:
             {"media_url": post["media_url"], "media_type": post["media_type"], "position": 0}
         ]
         post["is_liked_by_user"] = pid in liked_ids
+        post["is_saved"] = pid in saved_ids
         post["is_following"] = post["user_id"] in followed_ids
 
     return posts

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { API_URL } from "../lib/config";
-import { getAccessToken } from "../lib/auth";
+import { getAccessToken, getIsAdmin } from "../lib/auth";
 
 /**
  * Renders a single post card with media carousel, likes, comments, and download.
@@ -15,17 +15,51 @@ import { getAccessToken } from "../lib/auth";
  * @param {Function} props.onComment - Callback invoked with (postId) after a comment is posted.
  * @returns {JSX.Element}
  */
-function PostCard({ post, userId, onLike, onComment }) {
+function PostCard({ post, userId, isAdmin, onLike, onComment, onDelete }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState("");
   const [isLoadingComments, setIsLoadingComments] = useState(false);
   const [mediaIndex, setMediaIndex] = useState(0);
   const [isFollowing, setIsFollowing] = useState(post.is_following ?? false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isSaved, setIsSaved] = useState(post.is_saved ?? false);
 
   /**
    * Toggle following the post's author and update the local follow state.
    */
+  const handleSaveToggle = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${post.id}/save`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) setIsSaved(data.saved);
+    } catch (err) {
+      console.error("Failed to save post:", err);
+    }
+    setShowMenu(false);
+  };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Delete this post?")) return;
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${API_URL}/api/posts/${post.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok && onDelete) onDelete(post.id);
+    } catch (err) {
+      console.error("Failed to delete post:", err);
+    }
+    setShowMenu(false);
+  };
+
   const handleFollowToggle = async () => {
     const token = getAccessToken();
     try {
@@ -196,7 +230,43 @@ function PostCard({ post, userId, onLike, onComment }) {
               {isFollowing ? "Following" : "Follow"}
             </button>
           )}
-          <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
+          <div className="relative">
+            <button
+              onClick={() => setShowMenu((v) => !v)}
+              className="p-1 rounded hover:bg-white/10 transition"
+            >
+              <img src="/icons/three_dots_white.png" alt="more" className="w-5 h-5 object-contain" />
+            </button>
+            {showMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                <div className="absolute right-8 top-0 z-20 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-xl overflow-hidden w-40">
+                  {userId && (
+                    <button
+                      onClick={handleSaveToggle}
+                      className="w-full px-4 py-3 text-left text-sm text-white hover:bg-white/10 transition flex items-center gap-2"
+                    >
+                      <img
+                        src={isSaved ? "/icons/heart_red.png" : "/icons/heart_blanked - white.png"}
+                        alt="save"
+                        className="w-4 h-4 object-contain"
+                      />
+                      {isSaved ? "Unsave" : "Save"}
+                    </button>
+                  )}
+                  {(isAdmin || post.user_id === userId) && (
+                    <button
+                      onClick={handleDelete}
+                      className="w-full px-4 py-3 text-left text-sm text-red-400 hover:bg-white/10 transition flex items-center gap-2"
+                    >
+                      <span className="text-base">🗑</span>
+                      Delete post
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
       </div>
 
@@ -357,6 +427,11 @@ export default function PostsFeed({ userId, refreshTrigger }) {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(getIsAdmin());
+  }, []);
 
   /**
    * Fetch the post feed from the API and update the posts state.
@@ -422,6 +497,10 @@ export default function PostsFeed({ userId, refreshTrigger }) {
     );
   };
 
+  const handleDelete = (postId) => {
+    setPosts((prevPosts) => prevPosts.filter((p) => p.id !== postId));
+  };
+
   if (isLoading) {
     return (
       <div className="text-white/50 text-center py-8">Loading posts...</div>
@@ -447,8 +526,10 @@ export default function PostsFeed({ userId, refreshTrigger }) {
           key={post.id}
           post={post}
           userId={userId}
+          isAdmin={isAdmin}
           onLike={handleLike}
           onComment={handleComment}
+          onDelete={handleDelete}
         />
       ))}
     </div>
