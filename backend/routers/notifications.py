@@ -9,6 +9,17 @@ router = APIRouter(prefix="/api")
 
 @router.get("/notifications")
 def get_notifications(user_id: int):
+    """Fetch all notifications for a user.
+
+    Args:
+        user_id: The ID of the user whose notifications to fetch.
+
+    Returns:
+        JSON with ok=True, a 'notifications' list, and 'unread_count'.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             notifications = get_user_notifications(client, user_id)
@@ -21,6 +32,18 @@ def get_notifications(user_id: int):
 
 @router.post("/notifications/read")
 def mark_all_read(_: dict, current_user_id: int = Depends(get_current_user)):
+    """Mark all notifications as read for the authenticated user.
+
+    Args:
+        _: Unused request body (required by FastAPI for POST endpoints).
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(500): On unexpected server or database error.
+    """
     try:
         with db() as client:
             with client.transaction() as tx:

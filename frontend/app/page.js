@@ -21,7 +21,7 @@ export default async function Home() {
 
 
   return (
-    <main>
+    <main className="pt-[73px]">
       <MeteorsDemo />
       <NavBar />
 

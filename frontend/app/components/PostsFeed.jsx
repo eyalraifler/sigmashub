@@ -5,6 +5,16 @@ import Link from "next/link";
 import { API_URL } from "../lib/config";
 import { getAccessToken } from "../lib/auth";
 
+/**
+ * Renders a single post card with media carousel, likes, comments, and download.
+ *
+ * @param {Object} props
+ * @param {Object} props.post - The post object from the API.
+ * @param {number} props.userId - The logged-in user's ID (used for auth headers).
+ * @param {Function} props.onLike - Callback invoked with (postId, liked) after a like toggle.
+ * @param {Function} props.onComment - Callback invoked with (postId) after a comment is posted.
+ * @returns {JSX.Element}
+ */
 function PostCard({ post, userId, onLike, onComment }) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState([]);
@@ -13,6 +23,9 @@ function PostCard({ post, userId, onLike, onComment }) {
   const [mediaIndex, setMediaIndex] = useState(0);
   const [isFollowing, setIsFollowing] = useState(post.is_following ?? false);
 
+  /**
+   * Toggle following the post's author and update the local follow state.
+   */
   const handleFollowToggle = async () => {
     const token = getAccessToken();
     try {
@@ -34,6 +47,9 @@ function PostCard({ post, userId, onLike, onComment }) {
     : [{ media_url: post.media_url, media_type: post.media_type }];
   const currentMedia = mediaList[mediaIndex];
 
+  /**
+   * Fetch the comments for this post from the API and update local state.
+   */
   const fetchComments = async () => {
     setIsLoadingComments(true);
     try {
@@ -51,6 +67,9 @@ function PostCard({ post, userId, onLike, onComment }) {
     }
   };
 
+  /**
+   * Show or hide the comments section. Fetches comments on first open.
+   */
   const handleToggleComments = () => {
     if (!showComments) {
       fetchComments();
@@ -58,6 +77,11 @@ function PostCard({ post, userId, onLike, onComment }) {
     setShowComments(!showComments);
   };
 
+  /**
+   * Submit the comment input to the API and refresh the comments list on success.
+   *
+   * @param {React.FormEvent} e - The form submit event.
+   */
   const handleSubmitComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
@@ -89,6 +113,10 @@ function PostCard({ post, userId, onLike, onComment }) {
     }
   };
 
+  /**
+   * Download all media items in the post one by one via the /api/download proxy.
+   * Each file is triggered as a browser download with a descriptive filename.
+   */
   const handleDownload = async () => {
     for (let i = 0; i < mediaList.length; i++) {
       const media = mediaList[i];
@@ -108,6 +136,9 @@ function PostCard({ post, userId, onLike, onComment }) {
     }
   };
 
+  /**
+   * Toggle the like on this post and notify the parent via onLike callback.
+   */
   const handleLike = async () => {
     const token = getAccessToken();
     try {
@@ -310,11 +341,26 @@ function PostCard({ post, userId, onLike, onComment }) {
   );
 }
 
+/**
+ * Renders the full post feed, fetching posts from the API.
+ *
+ * Re-fetches whenever userId or refreshTrigger changes.
+ * Updates like counts and comment counts locally after user interactions
+ * without needing a full re-fetch.
+ *
+ * @param {Object} props
+ * @param {number} props.userId - The logged-in user's ID, used for like/follow state.
+ * @param {*} props.refreshTrigger - Any value — changing it triggers a feed re-fetch.
+ * @returns {JSX.Element}
+ */
 export default function PostsFeed({ userId, refreshTrigger }) {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
+  /**
+   * Fetch the post feed from the API and update the posts state.
+   */
   const fetchPosts = async () => {
     setIsLoading(true);
     try {
@@ -341,6 +387,12 @@ export default function PostsFeed({ userId, refreshTrigger }) {
     fetchPosts();
   }, [userId, refreshTrigger]);
 
+  /**
+   * Update the like count and like state for a post in the local list.
+   *
+   * @param {number} postId - The ID of the post that was liked/unliked.
+   * @param {boolean} liked - True if the post was just liked, false if unliked.
+   */
   const handleLike = (postId, liked) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) =>
@@ -355,6 +407,11 @@ export default function PostsFeed({ userId, refreshTrigger }) {
     );
   };
 
+  /**
+   * Increment the comment count for a post in the local list.
+   *
+   * @param {number} postId - The ID of the post that received a new comment.
+   */
   const handleComment = (postId) => {
     setPosts((prevPosts) =>
       prevPosts.map((post) =>

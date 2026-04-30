@@ -106,6 +106,20 @@ CREATE TABLE IF NOT EXISTS follows (
     INDEX idx_follows_following (following_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS follow_requests (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    requester_id BIGINT UNSIGNED NOT NULL,
+    target_id BIGINT UNSIGNED NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    PRIMARY KEY (id),
+    FOREIGN KEY (requester_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (target_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE KEY uq_follow_requests (requester_id, target_id),
+    INDEX idx_follow_requests_target (target_id),
+    INDEX idx_follow_requests_requester (requester_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS notifications (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     user_id BIGINT UNSIGNED NOT NULL,

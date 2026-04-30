@@ -3,6 +3,16 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+/**
+ * Server action — validate signup fields and check username/email availability.
+ *
+ * Does NOT create the user yet. On success, returns the validated credentials
+ * so the client can proceed to the onboarding step.
+ *
+ * @param {Object} prevState - Previous form state (used by useActionState).
+ * @param {FormData} formData - Form data containing email, username, and password.
+ * @returns {Promise<{ok: boolean, error?: string, credentials?: Object}>}
+ */
 export async function handleSignup(prevState, formData) {
   const email = formData.get("email");
   const username = formData.get("username");
@@ -31,6 +41,17 @@ export async function handleSignup(prevState, formData) {
   };
 }
 
+/**
+ * Server action — complete signup by creating the user with profile details.
+ *
+ * Sends email, username, password, bio, and avatar to the backend.
+ * On success, sets auth_token, access_token, username, and user_id cookies
+ * (valid for 7 days) and redirects the user to /app.
+ *
+ * @param {Object} prevState - Previous form state (used by useActionState).
+ * @param {FormData} formData - Form data with email, username, password, bio, avatar_data.
+ * @returns {Promise<{ok: boolean, error?: string}>} Only returns on failure; redirects on success.
+ */
 export async function handleOnboarding(prevState, formData) {
   const email = formData.get("email");
   const username = formData.get("username");

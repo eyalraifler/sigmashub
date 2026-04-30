@@ -41,6 +41,24 @@ class CreateCommentRequest(BaseModel):
 
 @router.post("/posts/create")
 def create_post(payload: CreatePostRequest, current_user_id: int = Depends(get_current_user)):
+    """Create a new post with media, caption, and tags.
+
+    Saves each media file to disk, then inserts the post, its media items,
+    and its tags in a single transaction. Notifies all followers afterward.
+
+    Args:
+        payload: Contains 'user_id', 'caption', 'tags', and 'media_items'
+                 (1–10 items, each with base64 data and media type).
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True, the new 'post_id', and the first 'media_url'.
+
+    Raises:
+        HTTPException(400): If media count or type is invalid.
+        HTTPException(404): If the user does not exist.
+        HTTPException(500): On unexpected server or file error.
+    """
     user_id = current_user_id
     caption = payload.caption.strip() if payload.caption else ""
     tags = normalize_tags(payload.tags)
@@ -88,6 +106,22 @@ def create_post(payload: CreatePostRequest, current_user_id: int = Depends(get_c
 
 @router.get("/posts/feed")
 def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
+    """Fetch a paginated feed of recent posts.
+
+    Enriches each post with tags, media items, like status, and follow status
+    relative to the requesting user.
+
+    Args:
+        user_id: The ID of the user requesting the feed.
+        limit: Maximum number of posts to return (default 20).
+        offset: Number of posts to skip for pagination (default 0).
+
+    Returns:
+        JSON with ok=True and a list of enriched PostResponse objects.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             posts = get_feed_posts(client, limit, offset)
@@ -113,6 +147,18 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
 
 @router.get("/posts/{post_id}")
 def get_post(post_id: int, user_id: int = None):
+    """Fetch a single post by ID with full details.
+
+    Args:
+        post_id: The ID of the post to fetch.
+        user_id: Optional ID of the requesting user, used to set is_liked_by_user.
+
+    Returns:
+        JSON with ok=True and a full PostResponse object including tags and media items.
+
+    Raises:
+        HTTPException(404): If the post does not exist.
+    """
     with db() as client:
         post = get_post_by_id(client, post_id)
         if not post:
@@ -153,6 +199,20 @@ def get_post(post_id: int, user_id: int = None):
 
 @router.delete("/posts/{post_id}")
 def delete_post_route(post_id: int, current_user_id: int = Depends(get_current_user)):
+    """Delete a post. Only the post's owner may do this.
+
+    Args:
+        post_id: The ID of the post to delete.
+        current_user_id: Injected from JWT — must be the post owner.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(403): If the authenticated user does not own the post.
+        HTTPException(404): If the post does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             with client.transaction() as tx:
@@ -176,6 +236,19 @@ def delete_post_route(post_id: int, current_user_id: int = Depends(get_current_u
 
 @router.post("/posts/like")
 def like_post(payload: LikeRequest, current_user_id: int = Depends(get_current_user)):
+    """Toggle a like on a post — like if not liked, unlike if already liked.
+
+    Args:
+        payload: Contains 'post_id'.
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True and 'liked' bool indicating the new like state.
+
+    Raises:
+        HTTPException(404): If the post does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     post_id = payload.post_id
     user_id = current_user_id
 
@@ -197,6 +270,19 @@ def like_post(payload: LikeRequest, current_user_id: int = Depends(get_current_u
 
 @router.get("/posts/{post_id}/likes")
 def get_post_likes_route(post_id: int, limit: int = 50, offset: int = 0):
+    """Fetch the list of users who liked a post.
+
+    Args:
+        post_id: The ID of the post.
+        limit: Maximum number of results to return (default 50).
+        offset: Number of results to skip for pagination (default 0).
+
+    Returns:
+        JSON with ok=True and a list of users (user_id, username, profile_image_url, liked_at).
+
+    Raises:
+        HTTPException(404): If the post does not exist.
+    """
     with db() as client:
         if not client.execute("SELECT id FROM posts WHERE id=%s LIMIT 1", (post_id,))['data']:
             raise HTTPException(status_code=404, detail="Post not found")
@@ -211,6 +297,20 @@ def get_post_likes_route(post_id: int, limit: int = 50, offset: int = 0):
 
 @router.post("/posts/comment")
 def create_comment(payload: CreateCommentRequest, current_user_id: int = Depends(get_current_user)):
+    """Add a comment to a post.
+
+    Args:
+        payload: Contains 'post_id' and 'content' (max 500 characters).
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True and the new 'comment_id'.
+
+    Raises:
+        HTTPException(400): If the comment is empty or exceeds 500 characters.
+        HTTPException(404): If the post or user does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     post_id = payload.post_id
     user_id = current_user_id
     content = payload.content.strip()
@@ -240,6 +340,16 @@ def create_comment(payload: CreateCommentRequest, current_user_id: int = Depends
 
 @router.get("/posts/{post_id}/comments")
 def get_post_comments_route(post_id: int, limit: int = 50, offset: int = 0):
+    """Fetch comments for a post with pagination.
+
+    Args:
+        post_id: The ID of the post.
+        limit: Maximum number of comments to return (default 50).
+        offset: Number of comments to skip for pagination (default 0).
+
+    Returns:
+        JSON with ok=True and a list of CommentResponse objects.
+    """
     with db() as client:
         comments = get_post_comments(client, post_id, limit, offset)
     return {"ok": True, "comments": [
@@ -254,6 +364,20 @@ def get_post_comments_route(post_id: int, limit: int = 50, offset: int = 0):
 
 @router.get("/comments/{comment_id}")
 def delete_comment_route(comment_id: int, current_user_id: int = Depends(get_current_user)):
+    """Delete a comment. Only the comment's author may do this.
+
+    Args:
+        comment_id: The ID of the comment to delete.
+        current_user_id: Injected from JWT — must be the comment author.
+
+    Returns:
+        JSON with ok=True and a confirmation message.
+
+    Raises:
+        HTTPException(403): If the authenticated user did not write the comment.
+        HTTPException(404): If the comment does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             with client.transaction() as tx:
@@ -275,6 +399,18 @@ def delete_comment_route(comment_id: int, current_user_id: int = Depends(get_cur
 
 @router.get("/tags/suggestions")
 def tag_suggestions(q: str, limit: int = 8):
+    """Return existing tags that start with the given query string.
+
+    Args:
+        q: The search prefix (leading '#' is stripped automatically).
+        limit: Maximum number of suggestions to return (default 8).
+
+    Returns:
+        JSON with ok=True and a list of matching tag strings.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     q = q.strip().lstrip("#").lower()
     if not q:
         return {"ok": True, "tags": []}

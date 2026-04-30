@@ -9,6 +9,8 @@ from db.queries.users import (
     get_user_counts, check_username_taken, update_user_fields,
     get_user_followers, get_user_following, attach_is_following,
     is_following_user, toggle_follow, get_user_aura_components, mark_tour_complete,
+    create_follow_request, delete_follow_request, has_follow_request,
+    get_pending_follow_requests, approve_follow_request,
 )
 from db.queries.posts import get_posts_by_user, get_liked_posts_by_user, enrich_posts
 
@@ -29,6 +31,15 @@ class FollowRequest(BaseModel):
 
 
 def get_tier(aura: int) -> dict:
+    """Map an aura score to a named rank tier.
+
+    Args:
+        aura: The user's calculated aura score.
+
+    Returns:
+        A dict with a 'name' key: one of 'Normie', 'Sigma Wannabe',
+        'Rising Sigma', 'Certified Sigma', or 'Gigachad'.
+    """
     if aura >= 300:
         return {"name": "Gigachad"}
     elif aura >= 200:
@@ -43,6 +54,17 @@ def get_tier(aura: int) -> dict:
 
 @router.get("/users/{user_id}")
 def get_user_profile(user_id: int):
+    """Fetch basic profile data for a user by ID.
+
+    Args:
+        user_id: The ID of the user to look up.
+
+    Returns:
+        JSON with ok=True and the user object.
+
+    Raises:
+        HTTPException(404): If no user exists with that ID.
+    """
     with db() as client:
         row = get_user_by_id(client, user_id)
     if not row:
@@ -52,6 +74,17 @@ def get_user_profile(user_id: int):
 
 @router.get("/users/by-username/{username}")
 def get_user_by_username_route(username: str):
+    """Fetch a user by their username.
+
+    Args:
+        username: The username to look up.
+
+    Returns:
+        JSON with ok=True and the user object.
+
+    Raises:
+        HTTPException(404): If no user exists with that username.
+    """
     with db() as client:
         user = get_user_by_username(client, username)
     if not user:
@@ -61,6 +94,20 @@ def get_user_by_username_route(username: str):
 
 @router.get("/users/{user_id}/profile")
 def get_full_profile(user_id: int, viewer_id: int = None):
+    """Fetch a user's full profile including counts and follow status.
+
+    Args:
+        user_id: The ID of the user whose profile to fetch.
+        viewer_id: Optional ID of the user viewing the profile, used to
+                   determine whether the viewer is following this user.
+
+    Returns:
+        JSON with ok=True and the profile dict including followers_count,
+        following_count, posts_count, and is_followed_by_viewer.
+
+    Raises:
+        HTTPException(404): If the user does not exist.
+    """
     with db() as client:
         user = get_user_full(client, user_id)
         if not user:
@@ -68,15 +115,48 @@ def get_full_profile(user_id: int, viewer_id: int = None):
 
         counts = get_user_counts(client, user_id)
 
+        is_own_profile = viewer_id == user_id
         is_followed_by_viewer = False
-        if viewer_id and viewer_id != user_id:
-            is_followed_by_viewer = is_following_user(client, viewer_id, user_id)
+        is_follow_requested = False
 
-    return {"ok": True, "profile": {**user, **counts, "is_followed_by_viewer": is_followed_by_viewer}}
+        if viewer_id and not is_own_profile:
+            is_followed_by_viewer = is_following_user(client, viewer_id, user_id)
+            if user["is_private"] and not is_followed_by_viewer:
+                is_follow_requested = has_follow_request(client, viewer_id, user_id)
+
+        is_locked = bool(user["is_private"]) and not is_followed_by_viewer and not is_own_profile
+
+    return {"ok": True, "profile": {
+        **user,
+        **counts,
+        "is_followed_by_viewer": is_followed_by_viewer,
+        "is_follow_requested": is_follow_requested,
+        "is_locked": is_locked,
+    }}
 
 
 @router.put("/users/{user_id}/update")
 def update_profile(user_id: int, payload: UpdateProfileRequest, current_user_id: int = Depends(get_current_user)):
+    """Update a user's profile fields.
+
+    Only the authenticated user may update their own profile. Only fields
+    that are present in the payload are updated.
+
+    Args:
+        user_id: The ID of the user to update.
+        payload: Optional fields to update: username, email, bio, profile_image.
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True and the updated user data.
+
+    Raises:
+        HTTPException(400): If any field fails validation.
+        HTTPException(403): If the authenticated user is not the owner.
+        HTTPException(404): If the user does not exist.
+        HTTPException(409): If the new username is already taken.
+        HTTPException(500): On unexpected server error.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
 
@@ -142,6 +222,12 @@ def update_profile(user_id: int, payload: UpdateProfileRequest, current_user_id:
 @router.get("/users/{user_id}/posts")
 def get_user_posts(user_id: int, viewer_id: int = None):
     with db() as client:
+        user = get_user_full(client, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user["is_private"] and viewer_id != user_id:
+            if not viewer_id or not is_following_user(client, viewer_id, user_id):
+                return {"ok": True, "posts": []}
         posts = get_posts_by_user(client, user_id)
         if not posts:
             return {"ok": True, "posts": []}
@@ -150,20 +236,32 @@ def get_user_posts(user_id: int, viewer_id: int = None):
 
 
 @router.get("/users/{user_id}/liked_posts")
-def get_user_liked_posts(user_id: int):
+def get_user_liked_posts(user_id: int, viewer_id: int = None):
     with db() as client:
+        user = get_user_full(client, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user["is_private"] and viewer_id != user_id:
+            if not viewer_id or not is_following_user(client, viewer_id, user_id):
+                return {"ok": True, "posts": []}
         posts = get_liked_posts_by_user(client, user_id)
         if not posts:
             return {"ok": True, "posts": []}
         enrich_posts(client, posts, viewer_id=None)
         for post in posts:
-            post["is_liked_by_user"] = True  # always true for liked posts
+            post["is_liked_by_user"] = True
     return {"ok": True, "posts": posts}
 
 
 @router.get("/users/{user_id}/followers")
 def get_followers(user_id: int, viewer_id: int = None):
     with db() as client:
+        user = get_user_full(client, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user["is_private"] and viewer_id != user_id:
+            if not viewer_id or not is_following_user(client, viewer_id, user_id):
+                return {"ok": True, "followers": []}
         followers = get_user_followers(client, user_id)
         attach_is_following(client, followers, viewer_id)
     return {"ok": True, "followers": followers}
@@ -172,6 +270,12 @@ def get_followers(user_id: int, viewer_id: int = None):
 @router.get("/users/{user_id}/following")
 def get_following(user_id: int, viewer_id: int = None):
     with db() as client:
+        user = get_user_full(client, user_id)
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        if user["is_private"] and viewer_id != user_id:
+            if not viewer_id or not is_following_user(client, viewer_id, user_id):
+                return {"ok": True, "following": []}
         following = get_user_following(client, user_id)
         attach_is_following(client, following, viewer_id)
     return {"ok": True, "following": following}
@@ -179,6 +283,21 @@ def get_following(user_id: int, viewer_id: int = None):
 
 @router.get("/users/{user_id}/aura")
 def get_user_aura(user_id: int):
+    """Calculate and return a user's aura score and rank tier.
+
+    Aura is calculated as:
+        posts * 2 + followers * 10 + total_likes * 3 + total_comments * 5
+
+    Args:
+        user_id: The ID of the user to calculate aura for.
+
+    Returns:
+        JSON with ok=True, the numeric 'aura' score, the 'tier' dict,
+        and a 'breakdown' of each component.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             components = get_user_aura_components(client, user_id)
@@ -196,6 +315,20 @@ def get_user_aura(user_id: int):
 
 @router.post("/users/follow")
 def toggle_follow_route(payload: FollowRequest, current_user_id: int = Depends(get_current_user)):
+    """Toggle following a user — follow if not following, unfollow if already following.
+
+    Args:
+        payload: Contains 'following_id' (the user to follow/unfollow).
+        current_user_id: Injected from JWT — the user performing the action.
+
+    Returns:
+        JSON with ok=True and 'following' bool indicating the new state.
+
+    Raises:
+        HTTPException(400): If the user tries to follow themselves.
+        HTTPException(404): If the target user does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     follower_id = current_user_id
     following_id = payload.following_id
 
@@ -204,17 +337,74 @@ def toggle_follow_route(payload: FollowRequest, current_user_id: int = Depends(g
 
     try:
         with db() as client:
-            with client.transaction() as tx:
-                if not tx.execute("SELECT id FROM users WHERE id=%s LIMIT 1", (following_id,))['data']:
-                    raise HTTPException(status_code=404, detail="User not found")
-                following = toggle_follow(tx, follower_id, following_id)
-        return {"ok": True, "following": following}
+            target = client.execute(
+                "SELECT id, is_private FROM users WHERE id=%s LIMIT 1", (following_id,)
+            )['data']
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+            is_private = bool(target[0]["is_private"])
+
+            # If already following → unfollow (same for public and private)
+            if is_following_user(client, follower_id, following_id):
+                with client.transaction() as tx:
+                    toggle_follow(tx, follower_id, following_id)
+                return {"ok": True, "following": False, "requested": False}
+
+            # Public account → follow directly
+            if not is_private:
+                with client.transaction() as tx:
+                    toggle_follow(tx, follower_id, following_id)
+                return {"ok": True, "following": True, "requested": False}
+
+            # Private account → toggle follow request
+            if has_follow_request(client, follower_id, following_id):
+                with client.transaction() as tx:
+                    delete_follow_request(tx, follower_id, following_id)
+                return {"ok": True, "following": False, "requested": False}
+            else:
+                with client.transaction() as tx:
+                    create_follow_request(tx, follower_id, following_id)
+                return {"ok": True, "following": False, "requested": True}
+
     except HTTPException:
         raise
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         print(f"Follow toggle error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+class FollowRequestResponse(BaseModel):
+    requester_id: int
+    action: str  # "approve" | "reject"
+
+
+@router.get("/users/{user_id}/follow-requests")
+def get_follow_requests(user_id: int, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    with db() as client:
+        requests = get_pending_follow_requests(client, user_id)
+    return {"ok": True, "requests": requests}
+
+
+@router.post("/users/{user_id}/follow-requests/respond")
+def respond_follow_request(user_id: int, payload: FollowRequestResponse, current_user_id: int = Depends(get_current_user)):
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Unauthorized")
+    if payload.action not in ("approve", "reject"):
+        raise HTTPException(status_code=400, detail="Invalid action")
+    try:
+        with db() as client:
+            with client.transaction() as tx:
+                if payload.action == "approve":
+                    approve_follow_request(tx, payload.requester_id, user_id)
+                else:
+                    delete_follow_request(tx, payload.requester_id, user_id)
+        return {"ok": True}
+    except Exception as e:
+        print(f"Respond follow request error: {e}")
         raise HTTPException(status_code=500, detail="Server error")
 
 
@@ -225,6 +415,19 @@ class PrivacyRequest(BaseModel):
 
 @router.get("/users/{user_id}/privacy")
 def get_privacy(user_id: int, current_user_id: int = Depends(get_current_user)):
+    """Get the privacy settings for the authenticated user.
+
+    Args:
+        user_id: The ID of the user whose settings to fetch.
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True, 'is_private' bool, and 'messages_privacy' string.
+
+    Raises:
+        HTTPException(403): If the authenticated user is not the owner.
+        HTTPException(404): If the user does not exist.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     with db() as client:
@@ -239,6 +442,24 @@ def get_privacy(user_id: int, current_user_id: int = Depends(get_current_user)):
 
 @router.put("/users/{user_id}/privacy")
 def update_privacy(user_id: int, payload: PrivacyRequest, current_user_id: int = Depends(get_current_user)):
+    """Update the privacy settings for the authenticated user.
+
+    Only fields included in the payload are updated.
+
+    Args:
+        user_id: The ID of the user to update.
+        payload: Optional fields: 'is_private' (bool) and/or
+                 'messages_privacy' ("everyone" or "followers").
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(400): If messages_privacy has an invalid value.
+        HTTPException(403): If the authenticated user is not the owner.
+        HTTPException(500): On unexpected server error.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     updates = {}
@@ -266,6 +487,14 @@ def update_privacy(user_id: int, payload: PrivacyRequest, current_user_id: int =
 
 @router.post("/users/complete_tour")
 async def complete_tour(current_user_id: int = Depends(get_current_user)):
+    """Mark the onboarding tour as completed for the authenticated user.
+
+    Args:
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True and a confirmation message.
+    """
     with db() as client:
         mark_tour_complete(client, current_user_id)
     return {"ok": True, "message": "Tour marked as completed"}

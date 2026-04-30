@@ -18,6 +18,20 @@ class GeminiRequest(BaseModel):
 
 
 def get_gemini_response(prompt: str, existing_tags: list = []) -> str:
+    """Send a prompt to Google Gemini and get hashtag suggestions.
+
+    Builds a system instruction that tells Gemini to act as a tag suggester,
+    appends a note about tags to avoid, then sends the prompt and returns
+    the raw response text (a comma-separated list of up to 5 tags).
+
+    Args:
+        prompt: The user's post caption or bio to generate tags from.
+        existing_tags: Tags the user already has — Gemini will not suggest these again.
+
+    Returns:
+        A comma-separated string of suggested tags (e.g. "cooking, food, recipes"),
+        or "Error generating tags" if the API call fails.
+    """
     system_instruction = (
         "You are a helpful assistant for Sigmas Hub website."
         "Sigmas Hub is a social media app for sharing and discovering content."
@@ -48,6 +62,19 @@ def get_gemini_response(prompt: str, existing_tags: list = []) -> str:
 
 @router.post("/ask_ai")
 def ask_ai(data: GeminiRequest):
+    """API endpoint to get AI-generated hashtag suggestions for a post.
+
+    Args:
+        data: Contains 'prompt' (the post text) and optional 'existing_tags'
+              (tags already added, which Gemini will not suggest again).
+
+    Returns:
+        JSON with ok=True and the 'response' string of suggested tags.
+
+    Raises:
+        HTTPException(400): If the prompt is empty.
+        HTTPException(500): If the Gemini API call fails.
+    """
     prompt = data.prompt.strip()
     if not prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")

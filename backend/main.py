@@ -28,7 +28,7 @@ app.mount("/icons", StaticFiles(directory=str(ICONS_DIR)), name="icons")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],   # In production, allow only https://sigmahub.com
     allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],

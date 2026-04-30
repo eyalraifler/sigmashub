@@ -24,6 +24,10 @@ function EditProfileModal({ profile, userId, onClose, onSaved }) {
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError("הקובץ חורג מהמגבלה של 10MB");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       setPreviewImage(ev.target.result);
@@ -735,6 +739,9 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   const [followers, setFollowers] = useState([]);
   const [following, setFollowing] = useState([]);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowRequested, setIsFollowRequested] = useState(false);
+  const [followRequests, setFollowRequests] = useState([]);
+  const [showFollowRequests, setShowFollowRequests] = useState(false);
   const [showSharePopover, setShowSharePopover] = useState(false);
   const [linkCopied, setLinkCopied] = useState(false);
   const [aura, setAura] = useState(null);
@@ -786,6 +793,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
       if (data.ok) {
         setProfile(data.profile);
         setIsFollowing(data.profile.is_followed_by_viewer);
+        setIsFollowRequested(data.profile.is_follow_requested);
       }
     } catch (err) {
       console.error("Failed to fetch profile:", err);
@@ -852,10 +860,42 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     }
   };
 
+  const fetchFollowRequests = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/users/${userId}/follow-requests`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.ok) setFollowRequests(data.requests);
+    } catch (err) {
+      console.error("Failed to fetch follow requests:", err);
+    }
+  };
+
+  const handleFollowRequestRespond = async (requesterId, action) => {
+    const token = getAccessToken();
+    try {
+      await fetch(`${API_URL}/api/users/${userId}/follow-requests/respond`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ requester_id: requesterId, action }),
+      });
+      setFollowRequests((prev) => prev.filter((r) => r.user_id !== requesterId));
+      if (action === "approve") {
+        setProfile((prev) => ({ ...prev, followers_count: prev.followers_count + 1 }));
+      }
+    } catch (err) {
+      console.error("Failed to respond to follow request:", err);
+    }
+  };
+
   useEffect(() => {
     fetchProfile();
     fetchPosts();
     fetchAura();
+    if (isOwnProfile) fetchFollowRequests();
   }, [profileUserId]);
 
   // Open modal for a specific post when arriving from a notification
@@ -900,6 +940,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
 
       if (targetUserId === profileUserId) {
         setIsFollowing(data.following);
+        setIsFollowRequested(data.requested ?? false);
         setProfile((prev) => ({
           ...prev,
           followers_count: data.following ? prev.followers_count + 1 : prev.followers_count - 1,
@@ -987,6 +1028,17 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                 >
                   Edit profile
                 </button>
+                {followRequests.length > 0 && (
+                  <button
+                    onClick={() => setShowFollowRequests(true)}
+                    className="relative px-5 py-1.5 bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition"
+                  >
+                    Requests
+                    <span className="absolute -top-1.5 -right-1.5 bg-[#e91e8c] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
+                      {followRequests.length}
+                    </span>
+                  </button>
+                )}
                 <button
                   onClick={() => router.push("/app/settings")}
                   className="w-9 h-9 bg-white/10 rounded-lg flex items-center justify-center hover:bg-white/20 transition"
@@ -1026,10 +1078,12 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                   className={`px-5 py-1.5 rounded-lg font-semibold text-sm transition ${
                     isFollowing
                       ? "bg-white/10 text-white hover:bg-white/20"
+                      : isFollowRequested
+                      ? "bg-white/5 text-white/60 border border-white/20 hover:bg-white/10"
                       : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
                   }`}
                 >
-                  {isFollowing ? "Following" : "Follow"}
+                  {isFollowing ? "Following" : isFollowRequested ? "Requested" : "Follow"}
                 </button>
                 <button
                   onClick={handleMessage}
@@ -1090,6 +1144,14 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
       <div className="mt-1">
         {activeTab === "saved" ? (
           <div className="text-white/40 text-center py-20">Saved posts coming soon</div>
+        ) : profile.is_locked ? (
+          <div className="flex flex-col items-center justify-center py-24 gap-4 text-white/40">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V7a4.5 4.5 0 00-9 0v3.5M5 10.5h14a1 1 0 011 1V20a1 1 0 01-1 1H5a1 1 0 01-1-1v-8.5a1 1 0 011-1z" />
+            </svg>
+            <p className="text-sm font-semibold">This account is private</p>
+            <p className="text-xs text-white/30">Follow this account to see their posts</p>
+          </div>
         ) : (
           <PostsGrid
             posts={displayPosts}
@@ -1163,6 +1225,54 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
           onClose={() => setShowFollowing(false)}
           onFollowToggle={handleFollowToggle}
         />
+      )}
+
+      {/* Follow Requests Modal */}
+      {showFollowRequests && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70"
+          onClick={() => setShowFollowRequests(false)}
+        >
+          <div
+            className="bg-[#111] border border-white/10 rounded-xl w-full max-w-sm mx-4 max-h-[70vh] flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <h2 className="text-white font-semibold text-sm">Follow Requests</h2>
+              <button onClick={() => setShowFollowRequests(false)} className="text-white/40 hover:text-white text-xl leading-none">×</button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {followRequests.length === 0 ? (
+                <p className="text-white/40 text-sm text-center py-10">No pending requests</p>
+              ) : (
+                followRequests.map((req) => (
+                  <div key={req.user_id} className="flex items-center gap-3 px-5 py-3 hover:bg-white/5">
+                    <div className="w-9 h-9 rounded-full bg-white/10 overflow-hidden flex-shrink-0">
+                      {req.profile_image_url ? (
+                        <img src={`${API_URL}${req.profile_image_url}`} alt={req.username} className="w-full h-full object-cover" />
+                      ) : (
+                        <img src="/icons/sigma_male_user_image.png" alt={req.username} className="w-full h-full object-cover" />
+                      )}
+                    </div>
+                    <span className="text-white text-sm flex-1">{req.username}</span>
+                    <button
+                      onClick={() => handleFollowRequestRespond(req.user_id, "approve")}
+                      className="px-3 py-1 bg-[#e91e8c] text-white text-xs rounded-lg font-semibold hover:bg-[#c4187a] transition"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleFollowRequestRespond(req.user_id, "reject")}
+                      className="px-3 py-1 bg-white/10 text-white text-xs rounded-lg font-semibold hover:bg-white/20 transition"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

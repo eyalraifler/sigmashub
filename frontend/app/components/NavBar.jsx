@@ -4,10 +4,22 @@ import Link from "next/link"
 import { dancingScript } from "../fonts";
 import { ChevronDown } from "./chevron";
 
+/**
+ * Landing page navigation bar with scroll-aware background change.
+ *
+ * Becomes opaque black after the user scrolls more than 10px.
+ * Contains the logo, navigation links (Features, Vision, About),
+ * a Help dropdown with a Contact link, and a Login button.
+ *
+ * @returns {JSX.Element}
+ */
 export default function NavBar() {
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
+    /**
+     * Update the scrolled state based on the current vertical scroll position.
+     */
     function onScroll() {
       setScrolled(window.scrollY > 10);
     }
@@ -20,7 +32,7 @@ export default function NavBar() {
   return (
     <header
       className={[
-        "sticky top-0 z-50 w-full border-b transition-all duration-300 black_pointy",
+        "fixed top-0 z-50 w-full border-b transition-all duration-300 black_pointy",
         scrolled
         ? "border-transparent bg-black"
         : "border-transparent bg-transparent",

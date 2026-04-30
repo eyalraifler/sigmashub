@@ -10,6 +10,23 @@ router = APIRouter(prefix="/api")
 
 @router.get("/search")
 def search(q: str, user_id: int = None, limit: int = 20):
+    """Search for users and posts matching the query string.
+
+    Searches users by username and bio. Searches posts by caption and by
+    hashtag. Merges post results and removes duplicates.
+
+    Args:
+        q: The search query. A leading '#' is stripped for tag search.
+        user_id: Optional ID of the requesting user, used to set
+                 is_following on each returned user.
+        limit: Maximum number of results per category (default 20).
+
+    Returns:
+        JSON with ok=True, a 'users' list, and a 'posts' list.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     q = q.strip()
     if not q:
         return {"ok": True, "users": [], "posts": []}

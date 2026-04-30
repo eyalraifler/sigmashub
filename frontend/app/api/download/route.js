@@ -1,5 +1,15 @@
 import { NextResponse } from "next/server";
 
+/**
+ * Next.js route handler — proxy a media file from the backend for download.
+ *
+ * Reads a `path` query parameter, fetches the file from the backend,
+ * and streams it back to the client with a Content-Disposition header
+ * that triggers a browser download.
+ *
+ * @param {Request} request - The incoming Next.js request object.
+ * @returns {NextResponse} The file stream with download headers, or an error response.
+ */
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
   const path = searchParams.get("path");

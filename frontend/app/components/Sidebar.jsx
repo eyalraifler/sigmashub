@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { dancingScript } from "../fonts";
 import NotificationsPanel from "./NotificationsPanel";
 import { API_URL } from "../lib/config";
+import { getAccessToken } from "../lib/auth";
 
 const linkNavItems = [
   {
@@ -82,9 +83,9 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   useEffect(() => {
     if (!userId) return;
     const fetchUnreadMessages = () => {
-      const token = document.cookie.match(/(?:^|;\s*)access_token=([^;]*)/)?.[1];
+      const token = getAccessToken();
       fetch(`${API_URL}/api/chats/unread-count`, {
-        headers: token ? { Authorization: `Bearer ${decodeURIComponent(token)}` } : {},
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
         .then((r) => r.json())
         .then((data) => { if (data.ok) setUnreadMessages(data.count); })

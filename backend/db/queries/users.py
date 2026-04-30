@@ -24,9 +24,9 @@ def get_user_auth_row(client, username: str):
 
 
 def get_user_full(client, user_id: int):
-    """Returns id, username, bio, profile_image_url — used for profile display."""
+    """Returns id, username, bio, profile_image_url, is_private — used for profile display."""
     return _one(client.execute(
-        "SELECT id, username, bio, profile_image_url FROM users WHERE id=%s LIMIT 1",
+        "SELECT id, username, bio, profile_image_url, is_private FROM users WHERE id=%s LIMIT 1",
         (user_id,),
     )['data'])
 
@@ -169,6 +169,51 @@ def toggle_follow(tx, follower_id: int, following_id: int) -> bool:
             (follower_id, following_id),
         )
         return True
+
+
+def create_follow_request(tx, requester_id: int, target_id: int):
+    tx.execute(
+        "INSERT IGNORE INTO follow_requests (requester_id, target_id) VALUES (%s, %s)",
+        (requester_id, target_id),
+    )
+
+
+def delete_follow_request(tx, requester_id: int, target_id: int):
+    tx.execute(
+        "DELETE FROM follow_requests WHERE requester_id=%s AND target_id=%s",
+        (requester_id, target_id),
+    )
+
+
+def has_follow_request(client, requester_id: int, target_id: int) -> bool:
+    return bool(client.execute(
+        "SELECT 1 FROM follow_requests WHERE requester_id=%s AND target_id=%s LIMIT 1",
+        (requester_id, target_id),
+    )['data'])
+
+
+def get_pending_follow_requests(client, user_id: int) -> list:
+    return client.execute(
+        """
+        SELECT u.id AS user_id, u.username, u.profile_image_url, fr.created_at
+        FROM follow_requests fr
+        JOIN users u ON fr.requester_id = u.id
+        WHERE fr.target_id = %s
+        ORDER BY fr.created_at DESC
+        """,
+        (user_id,),
+    )['data']
+
+
+def approve_follow_request(tx, requester_id: int, target_id: int):
+    tx.execute(
+        "DELETE FROM follow_requests WHERE requester_id=%s AND target_id=%s",
+        (requester_id, target_id),
+    )
+    tx.execute(
+        "INSERT IGNORE INTO follows (follower_id, following_id) VALUES (%s, %s)",
+        (requester_id, target_id),
+    )
 
 
 def get_user_aura_components(client, user_id: int) -> dict:

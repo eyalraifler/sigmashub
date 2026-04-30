@@ -5,6 +5,12 @@ import { useRouter } from "next/navigation";
 import { API_URL } from "../lib/config";
 import { getAccessToken } from "../lib/auth";
 
+/**
+ * Convert an ISO timestamp to a human-readable relative time string.
+ *
+ * @param {string} isoString - An ISO 8601 date string (e.g. "2024-01-15T10:30:00Z").
+ * @returns {string} A relative time string like "just now", "5m ago", "3h ago", or "2d ago".
+ */
 function timeAgo(isoString) {
   const diff = (Date.now() - new Date(isoString).getTime()) / 1000;
   if (diff < 60) return "just now";
@@ -13,12 +19,28 @@ function timeAgo(isoString) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+/**
+ * Slide-in panel that shows the current user's notifications.
+ *
+ * Fetches notifications on mount, marks them all as read immediately,
+ * and closes when the user clicks outside the panel.
+ *
+ * @param {Object} props
+ * @param {number} props.userId - The ID of the logged-in user.
+ * @param {Function} props.onClose - Callback invoked when the panel should close.
+ * @returns {JSX.Element}
+ */
 export default function NotificationsPanel({ userId, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const panelRef = useRef(null);
   const router = useRouter();
 
+  /**
+   * Navigate to the post that triggered the notification and close the panel.
+   *
+   * @param {Object} n - The notification object containing actor_username and post_id.
+   */
   const handleNotificationClick = (n) => {
     router.push(`/app/${n.actor_username}?post=${n.post_id}`);
     onClose();

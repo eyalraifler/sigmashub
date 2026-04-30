@@ -6,6 +6,18 @@ import { getAccessToken } from "../lib/auth";
 import PostSuccessAnimation from "./PostSuccessAnimation";
 import EmojiPicker from 'emoji-picker-react';
 
+/**
+ * Read-only preview of how the post will look once published.
+ * Shows a carousel of the selected media, the caption, and the tags.
+ *
+ * @param {Object} props
+ * @param {string} props.caption - The post caption text.
+ * @param {string[]} props.tags - List of hashtag strings (without #).
+ * @param {Array<{file: File, preview: string, type: string}>} props.mediaFiles - Selected media items.
+ * @param {string} props.username - The author's username.
+ * @param {string|null} props.profileImageUrl - The author's profile image URL path.
+ * @returns {JSX.Element}
+ */
 function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   const [mediaIndex, setMediaIndex] = useState(0);
 
@@ -146,6 +158,15 @@ function PostPreview({ caption, tags, mediaFiles, username, profileImageUrl }) {
   );
 }
 
+/**
+ * Full post creation form with live preview, media upload, tags, and AI suggestions.
+ *
+ * @param {Object} props
+ * @param {number} props.userId - The logged-in user's ID.
+ * @param {Function} [props.onPostCreated] - Optional callback invoked with the API response after a successful post.
+ * @param {string} props.username - The logged-in user's username (shown in the preview).
+ * @returns {JSX.Element}
+ */
 export default function CreatePost({ userId, onPostCreated, username }) {
   const [caption, setCaption] = useState("");
   const [tags, setTags] = useState([]);
@@ -188,6 +209,10 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   }, [userId]);
 
   // --- Tag handlers ---
+  /**
+   * Add the current tagInput value to the tags list after normalizing it.
+   * Ignores duplicates and enforces the 20-tag limit.
+   */
   const addTag = () => {
     const normalized = tagInput.replace(/^#+/, "").trim().toLowerCase();
     if (!normalized) return;
@@ -196,12 +221,24 @@ export default function CreatePost({ userId, onPostCreated, username }) {
     setTags([...tags, normalized]);
     setTagInput("");
   };
+  /** @param {number} index - Index of the tag to remove. */
   const removeTag = (index) => setTags(tags.filter((_, i) => i !== index));
+
+  /**
+   * Submit the tag when the user presses Enter in the tag input.
+   * @param {React.KeyboardEvent} e
+   */
   const handleTagKeyDown = (e) => {
     if (e.key === "Enter") { e.preventDefault(); addTag(); }
   };
 
   // --- Media handlers ---
+  /**
+   * Handle file input change — read selected files as base64 data URLs
+   * and add them to the mediaFiles list (up to 10 total).
+   *
+   * @param {React.ChangeEvent<HTMLInputElement>} e
+   */
   const handleFileSelect = (e) => {
     const selected = Array.from(e.target.files || []);
     setError("");
@@ -213,6 +250,11 @@ export default function CreatePost({ userId, onPostCreated, username }) {
       const isImage = file.type.startsWith("image/");
       const isVideo = file.type.startsWith("video/");
       if (!isImage && !isVideo) return;
+
+      if (file.size > 10 * 1024 * 1024) {
+        setError(`הקובץ "${file.name}" חורג מהמגבלה של 10MB`);
+        return;
+      }
 
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -228,10 +270,19 @@ export default function CreatePost({ userId, onPostCreated, username }) {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  /**
+   * Remove a media item from the list by index.
+   * @param {number} index - Index of the media item to remove.
+   */
   const removeMedia = (index) =>
     setMediaFiles((prev) => prev.filter((_, i) => i !== index));
 
   // --- AI Tag generation ---
+  /**
+   * Send the current caption to the AI endpoint and merge the suggested tags
+   * into the existing tag list (up to 20 total, no duplicates).
+   * Requires a non-empty caption to proceed.
+   */
   const handleGenerateTags = async () => {
     if (!caption.trim()) return;
     setIsGeneratingTags(true);
@@ -258,6 +309,12 @@ export default function CreatePost({ userId, onPostCreated, username }) {
   };
 
   // --- Submit ---
+  /**
+   * Read all media files as base64, send the post to the API, and reset the form on success.
+   * Shows a success animation and invokes onPostCreated if provided.
+   *
+   * @param {React.FormEvent} e - The form submit event.
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
 

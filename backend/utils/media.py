@@ -16,6 +16,16 @@ POSTS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def save_base64_image(base64_string: str) -> str:
+    """Decode a base64 image string and save it as a profile avatar.
+
+    Args:
+        base64_string: A base64-encoded image with a data URI header
+                       (e.g. "data:image/png;base64,...").
+
+    Returns:
+        The public URL path to the saved file (e.g. "/uploads/avatars/abc.png"),
+        or an empty string if the input is invalid or saving fails.
+    """
     if not base64_string or not base64_string.startswith("data:image"):
         return ""
     try:
@@ -33,6 +43,16 @@ def save_base64_image(base64_string: str) -> str:
 
 
 def save_post_media(base64_string: str) -> str:
+    """Decode a base64 media string and save it as post media (image or video).
+
+    Args:
+        base64_string: A base64-encoded media file with a data URI header
+                       (e.g. "data:image/jpeg;base64,..." or "data:video/mp4;base64,...").
+
+    Returns:
+        The public URL path to the saved file (e.g. "/uploads/posts/abc.mp4"),
+        or an empty string if the input is invalid or saving fails.
+    """
     if not base64_string or not base64_string.startswith("data:"):
         return ""
     try:
@@ -50,6 +70,17 @@ def save_post_media(base64_string: str) -> str:
 
 
 def normalize_tags(tags: list) -> list:
+    """Clean and deduplicate a list of hashtag strings.
+
+    Strips leading '#' characters, lowercases each tag, removes duplicates
+    while preserving order, and limits the result to 20 tags.
+
+    Args:
+        tags: A list of raw tag strings (may include '#', uppercase, duplicates).
+
+    Returns:
+        A cleaned list of unique lowercase tag strings, up to 20 items.
+    """
     seen = set()
     result = []
     for tag in tags:

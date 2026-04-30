@@ -6,6 +6,7 @@ from utils.auth import (
     hash_password, verify_password, create_access_token,
     generate_verification_code, store_verification, get_verification,
     delete_verification, is_verification_expired,
+    increment_verification_attempts, MAX_VERIFICATION_ATTEMPTS,
 )
 from utils.media import save_base64_image
 from db.queries.users import get_user_auth_row, check_username_taken, create_user
@@ -44,6 +45,22 @@ class SignupCompleteRequest(BaseModel):
 
 @router.post("/login")
 def login(payload: LoginRequest):
+    """Authenticate a user with username and password.
+
+    Looks up the user, verifies the password, then generates and emails a
+    6-digit verification code. The client must follow up with /login/verify.
+
+    Args:
+        payload: Contains 'username' and 'password'.
+
+    Returns:
+        JSON with ok=True, requires_verification=True, and the user's email.
+
+    Raises:
+        HTTPException(400): If username or password is missing.
+        HTTPException(401): If credentials are incorrect.
+        HTTPException(500): If the verification email fails to send.
+    """
     username = payload.username.strip().lower()
     password = payload.password
 
@@ -77,6 +94,21 @@ def login(payload: LoginRequest):
 
 @router.post("/login/verify")
 def verify_login_code(payload: VerifyCodeRequest):
+    """Verify the 6-digit email code and complete login.
+
+    Checks that the code matches and has not expired. On success, deletes
+    the stored code and returns a JWT token.
+
+    Args:
+        payload: Contains 'email' and 'code'.
+
+    Returns:
+        JSON with ok=True, a JWT 'token', and the user's basic data.
+
+    Raises:
+        HTTPException(400): If no code is found for that email, or it has expired.
+        HTTPException(401): If the code does not match.
+    """
     email = payload.email.strip().lower()
     code = payload.code.strip()
 
@@ -87,7 +119,11 @@ def verify_login_code(payload: VerifyCodeRequest):
         delete_verification(email)
         raise HTTPException(status_code=400, detail="Verification code expired. Please login again.")
     if entry["code"] != code:
-        raise HTTPException(status_code=401, detail="Invalid verification code")
+        attempts = increment_verification_attempts(email)
+        if attempts >= MAX_VERIFICATION_ATTEMPTS:
+            delete_verification(email)
+            raise HTTPException(status_code=429, detail="Too many failed attempts. Please login again.")
+        raise HTTPException(status_code=401, detail=f"Invalid verification code. {MAX_VERIFICATION_ATTEMPTS - attempts} attempts remaining.")
 
     user_data = entry["user_data"]
     delete_verification(email)
@@ -96,6 +132,21 @@ def verify_login_code(payload: VerifyCodeRequest):
 
 @router.post("/login/resend")
 def resend_verification_code(payload: ResendCodeRequest):
+    """Resend a new verification code to the user's email.
+
+    Replaces the previously stored code with a fresh one and sends it.
+    Requires an active verification session to already exist.
+
+    Args:
+        payload: Contains 'email'.
+
+    Returns:
+        JSON with ok=True and a confirmation message.
+
+    Raises:
+        HTTPException(400): If no active verification session exists for that email.
+        HTTPException(500): If the email fails to send.
+    """
     email = payload.email.strip().lower()
 
     entry = get_verification(email)
@@ -116,6 +167,20 @@ def resend_verification_code(payload: ResendCodeRequest):
 
 @router.post("/signup/check_user_available")
 def check_user_available(payload: SignupRequest):
+    """Check whether a username and email are valid and available.
+
+    Used before the full signup to give early feedback to the client.
+
+    Args:
+        payload: Contains 'email', 'username', and 'password'.
+
+    Returns:
+        JSON with ok=True and the validated username and email.
+
+    Raises:
+        HTTPException(400): If the email is invalid or username is too long.
+        HTTPException(409): If the username is already taken.
+    """
     email = payload.email.strip().lower()
     username = payload.username.strip()
 
@@ -133,6 +198,22 @@ def check_user_available(payload: SignupRequest):
 
 @router.post("/signup")
 def signup(payload: SignupRequest):
+    """Create a new user account with basic details.
+
+    Validates inputs, hashes the password, and inserts the user in a
+    transaction to prevent race conditions on duplicate usernames.
+
+    Args:
+        payload: Contains 'email', 'username', and 'password'.
+
+    Returns:
+        JSON with ok=True, a JWT 'token', and basic user data.
+
+    Raises:
+        HTTPException(400): If the email or username is invalid.
+        HTTPException(409): If the username is already taken.
+        HTTPException(500): On unexpected server or database error.
+    """
     email = payload.email.strip().lower()
     username = payload.username.strip()
     password = payload.password
@@ -162,6 +243,22 @@ def signup(payload: SignupRequest):
 
 @router.post("/signup/complete_signup")
 def complete_signup(payload: SignupCompleteRequest):
+    """Create a new user account with full profile details.
+
+    Validates inputs, saves the avatar image if provided (base64 or path),
+    hashes the password, and inserts the user in a transaction.
+
+    Args:
+        payload: Contains 'email', 'username', 'password', 'avatar_path', and 'bio'.
+
+    Returns:
+        JSON with ok=True, a JWT 'token', and full user data including bio and avatar.
+
+    Raises:
+        HTTPException(400): If any field fails validation.
+        HTTPException(409): If the username is already taken.
+        HTTPException(500): On unexpected server or database error.
+    """
     email = payload.email.strip().lower()
     username = payload.username.strip()
     password = payload.password
