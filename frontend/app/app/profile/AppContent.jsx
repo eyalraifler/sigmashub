@@ -488,7 +488,6 @@ function PostViewerModal({ posts, startIndex, userId, onClose, onLikeUpdate, onC
                 <img src="/icons/comment - white.png" alt="comment" className="w-6 h-6 object-contain" />
                 <span className="text-white text-sm">{isLoadingComments ? post.comments_count : comments.length}</span>
               </div>
-              <img src="/icons/send_post - white.png" alt="share" className="w-6 h-6 object-contain" />
             </div>
             {userId && (
               <form onSubmit={handleSubmitComment} className="flex gap-2">
@@ -755,29 +754,6 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
   useEffect(() => {
     setIsAdmin(getIsAdmin());
   }, []);
-
-  const handleMessage = async () => {
-    const token = getAccessToken();
-    try {
-      const res = await fetch(`${API_URL}/api/chats`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          member_ids: [userId, profileUserId],
-          is_group: false,
-        }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        router.push(`/app/messages?chat=${data.chat_id}`);
-      }
-    } catch (err) {
-      console.error("Message error:", err);
-    }
-  };
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -1123,12 +1099,6 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                   }`}
                 >
                   {isFollowing ? "Following" : isFollowRequested ? "Requested" : "Follow"}
-                </button>
-                <button
-                  onClick={handleMessage}
-                  className="px-5 py-1.5 bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition"
-                >
-                  Message
                 </button>
                 {isAdmin && (
                   <button

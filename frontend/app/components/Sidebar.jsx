@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation";
 import { dancingScript } from "../fonts";
 import NotificationsPanel from "./NotificationsPanel";
 import { API_URL } from "../lib/config";
-import { getAccessToken } from "../lib/auth";
 
 const linkNavItems = [
   {
@@ -26,13 +25,6 @@ const linkNavItems = [
     id: "search-link",
   },
   {
-    label: "Messages",
-    href: "/app/messages",
-    icon: "/icons/chat - white.png",
-    iconActive: "/icons/chat - white.png",
-    id: "messages-link",
-  },
-  {
     label: "Create",
     href: "/app/create",
     icon: "/icons/create_blank - white.png",
@@ -45,7 +37,6 @@ export default function Sidebar({ username, userId, onLogoClick }) {
   const pathname = usePathname();
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [unreadMessages, setUnreadMessages] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -80,22 +71,6 @@ export default function Sidebar({ username, userId, onLogoClick }) {
     return () => clearInterval(interval);
   }, [userId]);
 
-  useEffect(() => {
-    if (!userId) return;
-    const fetchUnreadMessages = () => {
-      const token = getAccessToken();
-      fetch(`${API_URL}/api/chats/unread-count`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      })
-        .then((r) => r.json())
-        .then((data) => { if (data.ok) setUnreadMessages(data.count); })
-        .catch(() => {});
-    };
-    fetchUnreadMessages();
-    const interval = setInterval(fetchUnreadMessages, 30000);
-    return () => clearInterval(interval);
-  }, [userId]);
-
   const handleOpenNotifications = () => {
     setShowNotifications(true);
     setUnreadCount(0);
@@ -126,11 +101,6 @@ export default function Sidebar({ username, userId, onLogoClick }) {
                 width={26}
                 height={26}
               />
-              {item.label === "Messages" && unreadMessages > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                  {unreadMessages > 9 ? "9+" : unreadMessages}
-                </span>
-              )}
             </div>
             <span
               className="overflow-hidden whitespace-nowrap transition-all duration-300 ease-in-out"

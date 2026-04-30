@@ -333,10 +333,6 @@ function PostCard({ post, userId, isAdmin, onLike, onComment, onDelete }) {
             <img src="/icons/comment - white.png" alt="comments" className="w-5 h-5 object-contain" />
             <span className="text-sm text-white">{post.comments_count}</span>
           </button>
-          {/* Share */}
-          <div className="flex items-center">
-            <img src="/icons/send_post - white.png" alt="share" className="w-5 h-5 object-contain" />
-          </div>
           {/* Save */}
           <button onClick={handleDownload} className="flex items-center ml-auto hover:opacity-70 transition">
             <img src="/icons/download - white.png" alt="download" className="w-5 h-5 object-contain" />
