@@ -46,8 +46,8 @@ def search(q: str, user_id: int = None, limit: int = 20):
                 for u in users:
                     u["is_following"] = False
 
-            by_caption = search_posts_by_caption(client, q, limit)
-            by_tag = search_posts_by_tag(client, tag_q, limit)
+            by_caption = search_posts_by_caption(client, q, limit, viewer_id=user_id)
+            by_tag = search_posts_by_tag(client, tag_q, limit, viewer_id=user_id)
             posts = merge_post_results(by_caption, by_tag, limit)
 
             enrich_posts(client, posts, viewer_id=user_id)

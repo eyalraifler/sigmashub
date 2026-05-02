@@ -151,6 +151,13 @@ def is_following_user(client, follower_id: int, following_id: int) -> bool:
     )['data'])
 
 
+def remove_follower(tx, follower_id: int, following_id: int):
+    tx.execute(
+        "DELETE FROM follows WHERE follower_id=%s AND following_id=%s",
+        (follower_id, following_id),
+    )
+
+
 def toggle_follow(tx, follower_id: int, following_id: int) -> bool:
     """Returns True if now following, False if unfollowed."""
     existing = _one(tx.execute(

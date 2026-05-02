@@ -8,7 +8,7 @@ from db.queries.users import (
     get_user_by_id, get_user_by_username, get_user_full, get_user_for_update,
     get_user_counts, check_username_taken, update_user_fields,
     get_user_followers, get_user_following, attach_is_following,
-    is_following_user, toggle_follow, get_user_aura_components, mark_tour_complete,
+    is_following_user, toggle_follow, remove_follower, get_user_aura_components, mark_tour_complete,
     create_follow_request, delete_follow_request, has_follow_request,
     get_pending_follow_requests, approve_follow_request,
 )
@@ -384,6 +384,39 @@ def toggle_follow_route(payload: FollowRequest, current_user_id: int = Depends(g
         raise HTTPException(status_code=500, detail=str(e))
     except Exception as e:
         print(f"Follow toggle error: {e}")
+        raise HTTPException(status_code=500, detail="Server error")
+
+
+class RemoveFollowerRequest(BaseModel):
+    follower_id: int
+
+
+@router.delete("/users/followers/remove")
+def remove_follower_route(payload: RemoveFollowerRequest, current_user_id: int = Depends(get_current_user)):
+    """Remove a follower from the authenticated user's followers list.
+
+    Args:
+        payload: Contains 'follower_id' (the user to remove).
+        current_user_id: Injected from JWT — the user performing the action.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(400): If the user tries to remove themselves.
+        HTTPException(500): On unexpected server error.
+    """
+    if payload.follower_id == current_user_id:
+        raise HTTPException(status_code=400, detail="Cannot remove yourself")
+    try:
+        with db() as client:
+            with client.transaction() as tx:
+                remove_follower(tx, payload.follower_id, current_user_id)
+        return {"ok": True}
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    except Exception as e:
+        print(f"Remove follower error: {e}")
         raise HTTPException(status_code=500, detail="Server error")
 
 

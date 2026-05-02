@@ -182,7 +182,7 @@ function EditProfileModal({ profile, userId, onClose, onSaved }) {
 
 // ─── Followers / Following modal ──────────────────────────────────────────────
 
-function UserListModal({ title, users, currentUserId, onClose, onFollowToggle }) {
+function UserListModal({ title, users, currentUserId, onClose, onFollowToggle, onRemoveFollower }) {
   return (
     <div
       className="fixed inset-0 bg-black/70 flex items-center justify-center z-50"
@@ -209,7 +209,11 @@ function UserListModal({ title, users, currentUserId, onClose, onFollowToggle })
                 key={user.user_id}
                 className="flex items-center justify-between px-4 py-3 hover:bg-white/5"
               >
-                <div className="flex items-center gap-3">
+                <Link
+                  href={`/app/profile/${user.user_id}`}
+                  onClick={onClose}
+                  className="flex items-center gap-3 flex-1 min-w-0"
+                >
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 overflow-hidden flex items-center justify-center flex-shrink-0">
                     {user.profile_image_url ? (
                       <img
@@ -223,20 +227,30 @@ function UserListModal({ title, users, currentUserId, onClose, onFollowToggle })
                       </span>
                     )}
                   </div>
-                  <span className="text-white font-medium text-sm">{user.username}</span>
+                  <span className="text-white font-medium text-sm truncate">{user.username}</span>
+                </Link>
+                <div className="flex items-center gap-2 ml-2 flex-shrink-0">
+                  {onRemoveFollower && user.user_id !== currentUserId && (
+                    <button
+                      onClick={() => onRemoveFollower(user.user_id)}
+                      className="px-3 py-1.5 rounded-lg text-sm font-semibold transition bg-white/10 text-white/70 hover:bg-red-500/80 hover:text-white"
+                    >
+                      Remove
+                    </button>
+                  )}
+                  {user.user_id !== currentUserId && (
+                    <button
+                      onClick={() => onFollowToggle(user.user_id)}
+                      className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
+                        user.is_following
+                          ? "bg-white/10 text-white hover:bg-white/20"
+                          : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
+                      }`}
+                    >
+                      {user.is_following ? "Following" : "Follow"}
+                    </button>
+                  )}
                 </div>
-                {user.user_id !== currentUserId && (
-                  <button
-                    onClick={() => onFollowToggle(user.user_id)}
-                    className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition ${
-                      user.is_following
-                        ? "bg-white/10 text-white hover:bg-white/20"
-                        : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
-                    }`}
-                  >
-                    {user.is_following ? "Following" : "Follow"}
-                  </button>
-                )}
               </div>
             ))
           )}
@@ -952,6 +966,23 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     }
   };
 
+  const handleRemoveFollower = async (followerUserId) => {
+    const token = getAccessToken();
+    try {
+      const res = await fetch(`${API_URL}/api/users/followers/remove`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ follower_id: followerUserId }),
+      });
+      const data = await res.json();
+      if (!data.ok) return;
+      setFollowers((prev) => prev.filter((u) => u.user_id !== followerUserId));
+      setProfile((prev) => ({ ...prev, followers_count: prev.followers_count - 1 }));
+    } catch (err) {
+      console.error("Failed to remove follower:", err);
+    }
+  };
+
   const handleProfileSaved = (updatedUser) => {
     setProfile((prev) => ({ ...prev, ...updatedUser }));
     setShowEditModal(false);
@@ -1090,15 +1121,17 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
               <>
                 <button
                   onClick={() => handleFollowToggle(profileUserId)}
-                  className={`px-5 py-1.5 rounded-lg font-semibold text-sm transition ${
+                  className={`px-5 py-1.5 rounded-lg font-semibold text-sm transition group ${
                     isFollowing
-                      ? "bg-white/10 text-white hover:bg-white/20"
+                      ? "bg-white/10 text-white hover:bg-red-500/80"
                       : isFollowRequested
                       ? "bg-white/5 text-white/60 border border-white/20 hover:bg-white/10"
                       : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
                   }`}
                 >
-                  {isFollowing ? "Following" : isFollowRequested ? "Requested" : "Follow"}
+                  {isFollowing
+                    ? <><span className="group-hover:hidden">Following</span><span className="hidden group-hover:inline">Unfollow</span></>
+                    : isFollowRequested ? "Requested" : "Follow"}
                 </button>
                 {isAdmin && (
                   <button
@@ -1228,6 +1261,7 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
           currentUserId={userId}
           onClose={() => setShowFollowers(false)}
           onFollowToggle={handleFollowToggle}
+          onRemoveFollower={isOwnProfile ? handleRemoveFollower : undefined}
         />
       )}
 

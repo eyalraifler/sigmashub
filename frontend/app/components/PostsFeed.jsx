@@ -221,13 +221,15 @@ function PostCard({ post, userId, isAdmin, onLike, onComment, onDelete }) {
           {userId && post.user_id !== userId && (
             <button
               onClick={handleFollowToggle}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition group ${
                 isFollowing
-                  ? "bg-white/10 text-white hover:bg-white/20"
+                  ? "bg-white/10 text-white hover:bg-red-500/80"
                   : "bg-[#e91e8c] text-white hover:bg-[#c4187a]"
               }`}
             >
-              {isFollowing ? "Following" : "Follow"}
+              {isFollowing
+                ? <><span className="group-hover:hidden">Following</span><span className="hidden group-hover:inline">Unfollow</span></>
+                : "Follow"}
             </button>
           )}
           <div className="relative">

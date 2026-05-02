@@ -12,7 +12,7 @@ def search_users(client, query: str, limit: int) -> list:
     )['data']
 
 
-def search_posts_by_caption(client, query: str, limit: int) -> list:
+def search_posts_by_caption(client, query: str, limit: int, viewer_id: int = None) -> list:
     return client.execute(
         """
         SELECT DISTINCT p.id, p.user_id, p.caption, p.media_url, p.media_type,
@@ -21,14 +21,19 @@ def search_posts_by_caption(client, query: str, limit: int) -> list:
         FROM posts p
         JOIN users u ON p.user_id = u.id
         WHERE p.caption LIKE %s
+          AND (
+            u.is_private = 0
+            OR p.user_id = %s
+            OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = %s AND f.following_id = p.user_id)
+          )
         ORDER BY p.created_at DESC
         LIMIT %s
         """,
-        (f"%{query}%", limit),
+        (f"%{query}%", viewer_id, viewer_id, limit),
     )['data']
 
 
-def search_posts_by_tag(client, query: str, limit: int) -> list:
+def search_posts_by_tag(client, query: str, limit: int, viewer_id: int = None) -> list:
     return client.execute(
         """
         SELECT DISTINCT p.id, p.user_id, p.caption, p.media_url, p.media_type,
@@ -38,10 +43,15 @@ def search_posts_by_tag(client, query: str, limit: int) -> list:
         JOIN users u ON p.user_id = u.id
         JOIN post_tags pt ON pt.post_id = p.id
         WHERE pt.tag LIKE %s
+          AND (
+            u.is_private = 0
+            OR p.user_id = %s
+            OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = %s AND f.following_id = p.user_id)
+          )
         ORDER BY p.created_at DESC
         LIMIT %s
         """,
-        (f"%{query}%", limit),
+        (f"%{query}%", viewer_id, viewer_id, limit),
     )['data']
 
 
