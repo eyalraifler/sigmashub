@@ -124,7 +124,7 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
     """
     try:
         with db() as client:
-            posts = get_feed_posts(client, limit, offset)
+            posts = get_feed_posts(client, limit, offset, viewer_id=user_id)
             posts = posts[:5]  # demo limit
             enrich_posts(client, posts, viewer_id=user_id)
 

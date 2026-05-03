@@ -147,7 +147,7 @@ def get_post_by_id(client, post_id: int):
     )['data'])
 
 
-def get_feed_posts(client, limit: int, offset: int) -> list:
+def get_feed_posts(client, limit: int, offset: int, viewer_id: int = None) -> list:
     return client.execute(
         """
         SELECT p.id, p.user_id, p.caption, p.media_url, p.media_type,
@@ -155,10 +155,13 @@ def get_feed_posts(client, limit: int, offset: int) -> list:
                u.username, u.profile_image_url
         FROM posts p
         JOIN users u ON p.user_id = u.id
+        WHERE u.is_private = 0
+           OR p.user_id = %s
+           OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = %s AND f.following_id = p.user_id)
         ORDER BY p.created_at DESC
         LIMIT %s OFFSET %s
         """,
-        (limit, offset),
+        (viewer_id, viewer_id, limit, offset),
     )['data']
 
 
@@ -382,9 +385,15 @@ def get_for_you_posts(client, user_id: int, limit: int, offset: int) -> list:
         FROM posts p
         JOIN users u ON p.user_id = u.id
         WHERE p.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)
+          AND (
+            u.is_private = 0
+            OR p.user_id = %s
+            OR EXISTS (SELECT 1 FROM follows f WHERE f.follower_id = %s AND f.following_id = p.user_id)
+          )
         ORDER BY p.created_at DESC
         LIMIT 300
         """,
+        (user_id, user_id),
     )['data']
 
     if not posts:
