@@ -31,9 +31,9 @@ const steps = [
 ];
 
 const markTourComplete = async () => {
-    const token = getAccessToken();
-    if (!token) return;
     try {
+        const token = getAccessToken();
+        if (!token) return;
         await fetch(`${API_URL}/api/users/complete_tour`, {
             method: 'POST',
             headers: { Authorization: `Bearer ${token}` },
