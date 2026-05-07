@@ -45,7 +45,7 @@ export async function handleSignup(prevState, formData) {
  * Server action — complete signup by creating the user with profile details.
  *
  * Sends email, username, password, bio, and avatar to the backend.
- * On success, sets auth_token, access_token, username, and user_id cookies
+ * On success, sets access_token, username, and user_id cookies
  * (valid for 7 days) and redirects the user to /app.
  *
  * @param {Object} prevState - Previous form state (used by useActionState).
@@ -79,14 +79,6 @@ export async function handleOnboarding(prevState, formData) {
   if (!token) return { ok: false, error: "No token returned" };
 
   const cookieStore = await cookies();
-  cookieStore.set("auth_token", token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-    maxAge: 60 * 60 * 24 * 7,
-  });
-
   cookieStore.set("access_token", token, {
     httpOnly: false,
     secure: process.env.NODE_ENV === "production",

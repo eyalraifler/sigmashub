@@ -42,14 +42,6 @@ export default function LoginPage() {
     const cookieStore = await cookies();
     const cookieUsername = data.user?.username;
 
-    cookieStore.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
-
     cookieStore.set("access_token", token, {
       httpOnly: false,
       secure: process.env.NODE_ENV === "production",
@@ -113,14 +105,6 @@ export default function LoginPage() {
     if (!token) return { error: "No token returned" };
 
     const cookieStore = await cookies();
-
-    cookieStore.set("auth_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 7,
-    });
 
     cookieStore.set("access_token", token, {
       httpOnly: false,
