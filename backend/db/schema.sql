@@ -140,8 +140,10 @@ CREATE TABLE IF NOT EXISTS notifications (
     actor_user_id BIGINT UNSIGNED NOT NULL,
     actor_username VARCHAR(32) NOT NULL,
     actor_profile_image_url VARCHAR(512) NULL,
-    post_id BIGINT UNSIGNED NOT NULL,
+    notification_type ENUM('post', 'message') NOT NULL DEFAULT 'post',
+    post_id BIGINT UNSIGNED NULL,
     post_media_url VARCHAR(512) NULL,
+    chat_id BIGINT UNSIGNED NULL,
     is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -154,20 +156,19 @@ CREATE TABLE IF NOT EXISTS notifications (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- 1. Conversations: The "Container" for a chat
+-- 1. Direct message conversations
 CREATE TABLE IF NOT EXISTS chats (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-    name VARCHAR(255) NULL, -- Null for 1-to-1 chats, named for group chats
-    is_group TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 2. Chat Members: Who is in which chat?
+-- 2. Chat Members (always exactly 2 for direct messages)
 CREATE TABLE IF NOT EXISTS chat_members (
     chat_id BIGINT UNSIGNED NOT NULL,
     user_id BIGINT UNSIGNED NOT NULL,
     joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_read_message_id BIGINT UNSIGNED NULL,
     PRIMARY KEY (chat_id, user_id),
     FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

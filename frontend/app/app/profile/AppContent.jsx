@@ -1003,6 +1003,22 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
     }
   };
 
+  const handleMessageUser = async () => {
+    const token = getAccessToken();
+    if (!token) return;
+    try {
+      const res = await fetch(`${API_URL}/api/chats`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ member_ids: [profileUserId] }),
+      });
+      const data = await res.json();
+      if (data.ok) router.push(`/app/messages?chat=${data.chat_id}`);
+    } catch (err) {
+      console.error("Failed to open chat:", err);
+    }
+  };
+
   const handleDeletePost = async (postId) => {
     const token = getAccessToken();
     try {
@@ -1133,6 +1149,14 @@ export default function AppContent({ userId, profileUserId, initialPostId = null
                     ? <><span className="group-hover:hidden">Following</span><span className="hidden group-hover:inline">Unfollow</span></>
                     : isFollowRequested ? "Requested" : "Follow"}
                 </button>
+                {userId && (
+                  <button
+                    onClick={handleMessageUser}
+                    className="px-5 py-1.5 bg-white/10 text-white rounded-lg font-semibold text-sm hover:bg-white/20 transition"
+                  >
+                    Message
+                  </button>
+                )}
                 {isAdmin && (
                   <button
                     onClick={handleDeleteUser}

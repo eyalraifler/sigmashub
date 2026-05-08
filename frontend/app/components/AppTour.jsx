@@ -19,6 +19,12 @@ const steps = [
     position: 'right'
   },
   {
+    target: '#messages-link',
+    title: 'Messages',
+    content: 'Send and receive direct messages with other users.',
+    position: 'right'
+  },
+  {
     target: '#profile-link',
     content: 'View and edit your profile here.',
     position: 'right'

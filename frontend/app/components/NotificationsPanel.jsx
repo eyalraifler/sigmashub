@@ -5,12 +5,6 @@ import { useRouter } from "next/navigation";
 import { API_URL } from "../lib/config";
 import { getAccessToken } from "../lib/auth";
 
-/**
- * Convert an ISO timestamp to a human-readable relative time string.
- *
- * @param {string} isoString - An ISO 8601 date string (e.g. "2024-01-15T10:30:00Z").
- * @returns {string} A relative time string like "just now", "5m ago", "3h ago", or "2d ago".
- */
 function timeAgo(isoString) {
   const diff = (Date.now() - new Date(isoString).getTime()) / 1000;
   if (diff < 60) return "just now";
@@ -19,30 +13,18 @@ function timeAgo(isoString) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
-/**
- * Slide-in panel that shows the current user's notifications.
- *
- * Fetches notifications on mount, marks them all as read immediately,
- * and closes when the user clicks outside the panel.
- *
- * @param {Object} props
- * @param {number} props.userId - The ID of the logged-in user.
- * @param {Function} props.onClose - Callback invoked when the panel should close.
- * @returns {JSX.Element}
- */
 export default function NotificationsPanel({ userId, onClose }) {
   const [notifications, setNotifications] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const panelRef = useRef(null);
   const router = useRouter();
 
-  /**
-   * Navigate to the post that triggered the notification and close the panel.
-   *
-   * @param {Object} n - The notification object containing actor_username and post_id.
-   */
   const handleNotificationClick = (n) => {
-    router.push(`/app/${n.actor_username}?post=${n.post_id}`);
+    if (n.notification_type === "message") {
+      router.push(`/app/messages?chat=${n.chat_id}`);
+    } else {
+      router.push(`/app/${n.actor_username}?post=${n.post_id}`);
+    }
     onClose();
   };
 
@@ -57,7 +39,6 @@ export default function NotificationsPanel({ userId, onClose }) {
       .catch(console.error)
       .finally(() => setIsLoading(false));
 
-    // Mark all as read
     const token = getAccessToken();
     fetch(`${API_URL}/api/notifications/read`, {
       method: "POST",
@@ -66,12 +47,9 @@ export default function NotificationsPanel({ userId, onClose }) {
     }).catch(console.error);
   }, [userId]);
 
-  // Close on outside click
   useEffect(() => {
     const handleClick = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) {
-        onClose();
-      }
+      if (panelRef.current && !panelRef.current.contains(e.target)) onClose();
     };
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
@@ -79,15 +57,11 @@ export default function NotificationsPanel({ userId, onClose }) {
 
   return (
     <>
-      {/* Invisible backdrop to catch outside clicks */}
       <div className="fixed inset-0 z-40" />
-
-      {/* Panel */}
       <div
         ref={panelRef}
         className="fixed top-0 left-0 z-50 h-screen w-[360px] bg-[#111] border-r border-white/10 flex flex-col shadow-2xl"
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
           <h2 className="text-white text-lg font-bold">Notifications</h2>
           <button
@@ -98,7 +72,6 @@ export default function NotificationsPanel({ userId, onClose }) {
           </button>
         </div>
 
-        {/* Content */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <p className="text-white/40 text-sm text-center py-10">Loading...</p>
@@ -132,19 +105,30 @@ export default function NotificationsPanel({ userId, onClose }) {
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm">
                     <span className="font-semibold">{n.actor_username}</span>{" "}
-                    posted a new photo
+                    {n.notification_type === "message"
+                      ? "sent you a message"
+                      : "posted a new photo"}
                   </p>
                   <p className="text-white/40 text-xs">{timeAgo(n.created_at)}</p>
                 </div>
 
-                {/* Post thumbnail */}
-                {n.post_media_url && (
+                {/* Post thumbnail (post notifications only) */}
+                {n.notification_type !== "message" && n.post_media_url && (
                   <div className="w-10 h-10 flex-shrink-0 overflow-hidden rounded">
                     <img
                       src={`${API_URL}${n.post_media_url}`}
                       alt="post"
                       className="w-full h-full object-cover"
                     />
+                  </div>
+                )}
+
+                {/* Message icon (message notifications) */}
+                {n.notification_type === "message" && (
+                  <div className="w-10 h-10 flex-shrink-0 rounded bg-white/5 flex items-center justify-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                    </svg>
                   </div>
                 )}
 

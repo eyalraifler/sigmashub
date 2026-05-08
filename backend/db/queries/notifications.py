@@ -2,7 +2,7 @@ def get_user_notifications(client, user_id: int) -> list:
     return client.execute(
         """
         SELECT id, actor_user_id, actor_username, actor_profile_image_url,
-               post_id, post_media_url, is_read, created_at
+               notification_type, post_id, post_media_url, chat_id, is_read, created_at
         FROM notifications
         WHERE user_id = %s
         ORDER BY created_at DESC
@@ -29,10 +29,26 @@ def notify_followers_of_post(client, follower_ids: list, actor: dict, post_id: i
                 tx.execute(
                     "INSERT INTO notifications"
                     " (user_id, actor_user_id, actor_username,"
-                    "  actor_profile_image_url, post_id, post_media_url)"
-                    " VALUES (%s, %s, %s, %s, %s, %s)",
+                    "  actor_profile_image_url, notification_type, post_id, post_media_url)"
+                    " VALUES (%s, %s, %s, %s, 'post', %s, %s)",
                     (fid, actor['id'], actor['username'],
                      actor['profile_image_url'], post_id, media_url),
                 )
     except Exception as e:
         print(f"Notification insert error (non-fatal): {e}")
+
+
+def notify_message_sent(client, recipient_id: int, sender: dict, chat_id: int):
+    """Insert a message notification for the recipient. Non-fatal."""
+    try:
+        with client.transaction() as tx:
+            tx.execute(
+                "INSERT INTO notifications"
+                " (user_id, actor_user_id, actor_username,"
+                "  actor_profile_image_url, notification_type, chat_id)"
+                " VALUES (%s, %s, %s, %s, 'message', %s)",
+                (recipient_id, sender['id'], sender['username'],
+                 sender.get('profile_image_url'), chat_id),
+            )
+    except Exception as e:
+        print(f"Message notification insert error (non-fatal): {e}")
