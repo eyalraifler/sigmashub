@@ -1,4 +1,5 @@
 import os
+import ssl
 import socket
 import json
 import struct
@@ -7,6 +8,7 @@ import threading
 from decimal import Decimal
 from dotenv import load_dotenv
 from db_connection import get_conn  # pylint: disable=import-error
+
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, '..', '.env'))
@@ -152,6 +154,18 @@ def _serve_connection(conn_socket, addr):
 
 def start_db_server(host='0.0.0.0', port=5000):
     print(f"Starting DB server on {host}:{port}...")
+
+    ssl_cert = os.getenv("DB_SSL_CERT")
+    ssl_key  = os.getenv("DB_SSL_KEY")
+
+    tls_context = None
+    if ssl_cert and ssl_key:
+        tls_context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+        tls_context.load_cert_chain(certfile=ssl_cert, keyfile=ssl_key)
+        print("TLS enabled.")
+    else:
+        print("WARNING: TLS is disabled. Set DB_SSL_CERT and DB_SSL_KEY in .env to enable it.")
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
         server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         server_socket.bind((host, port))
@@ -160,6 +174,8 @@ def start_db_server(host='0.0.0.0', port=5000):
         while True:
             print("Waiting for a connection...")
             conn, addr = server_socket.accept()
+            if tls_context:
+                conn = tls_context.wrap_socket(conn, server_side=True)
             thread = threading.Thread(target=_serve_connection, args=(conn, addr), daemon=True)
             thread.start()
 

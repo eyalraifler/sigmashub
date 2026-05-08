@@ -1,3 +1,5 @@
+import os
+import ssl
 import socket
 import json
 import struct
@@ -115,8 +117,18 @@ class RemoteDBClient:
 
     def connect(self):
         """Open a TCP socket connection to the DB server."""
-        self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._sock.connect((self.host, self.port))
+        ssl_ca = os.getenv("DB_SSL_CA")
+
+        raw_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        raw_sock.connect((self.host, self.port))
+
+        if ssl_ca:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+            context.load_verify_locations(cafile=ssl_ca)
+            context.check_hostname = False
+            self._sock = context.wrap_socket(raw_sock, server_hostname=self.host)
+        else:
+            self._sock = raw_sock
 
     def close(self):
         """Close the socket connection if it is open."""
