@@ -221,6 +221,19 @@ def update_profile(user_id: int, payload: UpdateProfileRequest, current_user_id:
 
 @router.get("/users/{user_id}/posts")
 def get_user_posts(user_id: int, viewer_id: int = None):
+    """Fetch all posts by a user, respecting privacy settings.
+
+    Args:
+        user_id: The ID of the user whose posts to fetch.
+        viewer_id: Optional ID of the requesting user. Private accounts
+                   return an empty list unless the viewer follows the user.
+
+    Returns:
+        JSON with ok=True and an enriched 'posts' list.
+
+    Raises:
+        HTTPException(404): If the user does not exist.
+    """
     with db() as client:
         user = get_user_full(client, user_id)
         if not user:
@@ -237,6 +250,19 @@ def get_user_posts(user_id: int, viewer_id: int = None):
 
 @router.get("/users/{user_id}/liked_posts")
 def get_user_liked_posts(user_id: int, viewer_id: int = None):
+    """Fetch all posts liked by a user, respecting privacy settings.
+
+    Args:
+        user_id: The ID of the user whose liked posts to fetch.
+        viewer_id: Optional ID of the requesting user. Private accounts
+                   return an empty list unless the viewer follows the user.
+
+    Returns:
+        JSON with ok=True and an enriched 'posts' list where is_liked_by_user=True.
+
+    Raises:
+        HTTPException(404): If the user does not exist.
+    """
     with db() as client:
         user = get_user_full(client, user_id)
         if not user:
@@ -255,6 +281,18 @@ def get_user_liked_posts(user_id: int, viewer_id: int = None):
 
 @router.get("/users/{user_id}/saved_posts")
 def get_user_saved_posts(user_id: int, current_user_id: int = Depends(get_current_user)):
+    """Fetch the authenticated user's saved posts. Only accessible by the owner.
+
+    Args:
+        user_id: The ID of the user whose saved posts to fetch.
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True and an enriched 'posts' list.
+
+    Raises:
+        HTTPException(403): If the authenticated user is not the owner.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     with db() as client:
@@ -267,6 +305,19 @@ def get_user_saved_posts(user_id: int, current_user_id: int = Depends(get_curren
 
 @router.get("/users/{user_id}/followers")
 def get_followers(user_id: int, viewer_id: int = None):
+    """Fetch a user's follower list, respecting privacy settings.
+
+    Args:
+        user_id: The ID of the user whose followers to fetch.
+        viewer_id: Optional ID of the requesting user. Private accounts
+                   return an empty list unless the viewer follows the user.
+
+    Returns:
+        JSON with ok=True and a 'followers' list with is_following for each entry.
+
+    Raises:
+        HTTPException(404): If the user does not exist.
+    """
     with db() as client:
         user = get_user_full(client, user_id)
         if not user:
@@ -281,6 +332,19 @@ def get_followers(user_id: int, viewer_id: int = None):
 
 @router.get("/users/{user_id}/following")
 def get_following(user_id: int, viewer_id: int = None):
+    """Fetch the list of users that a user follows, respecting privacy settings.
+
+    Args:
+        user_id: The ID of the user whose following list to fetch.
+        viewer_id: Optional ID of the requesting user. Private accounts
+                   return an empty list unless the viewer follows the user.
+
+    Returns:
+        JSON with ok=True and a 'following' list with is_following for each entry.
+
+    Raises:
+        HTTPException(404): If the user does not exist.
+    """
     with db() as client:
         user = get_user_full(client, user_id)
         if not user:
@@ -427,6 +491,18 @@ class FollowRequestResponse(BaseModel):
 
 @router.get("/users/{user_id}/follow-requests")
 def get_follow_requests(user_id: int, current_user_id: int = Depends(get_current_user)):
+    """Fetch pending follow requests for a private account. Only accessible by the owner.
+
+    Args:
+        user_id: The ID of the user whose pending requests to fetch.
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True and a 'requests' list (requester user_id, username, etc.).
+
+    Raises:
+        HTTPException(403): If the authenticated user is not the owner.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     with db() as client:
@@ -435,7 +511,26 @@ def get_follow_requests(user_id: int, current_user_id: int = Depends(get_current
 
 
 @router.post("/users/{user_id}/follow-requests/respond")
-def respond_follow_request(user_id: int, payload: FollowRequestResponse, current_user_id: int = Depends(get_current_user)):
+def respond_follow_request(
+    user_id: int,
+    payload: FollowRequestResponse,
+    current_user_id: int = Depends(get_current_user),
+):
+    """Approve or reject a pending follow request. Only accessible by the account owner.
+
+    Args:
+        user_id: The ID of the user responding to the request.
+        payload: Contains 'requester_id' and 'action' ("approve" or "reject").
+        current_user_id: Injected from JWT — must match user_id.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(400): If action is not "approve" or "reject".
+        HTTPException(403): If the authenticated user is not the owner.
+        HTTPException(500): On unexpected server error.
+    """
     if current_user_id != user_id:
         raise HTTPException(status_code=403, detail="Unauthorized")
     if payload.action not in ("approve", "reject"):

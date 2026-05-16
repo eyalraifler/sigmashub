@@ -49,6 +49,12 @@ def make_rtl_run(run):
     rPr.append(rtl)
 
 def set_shading(paragraph, fill_hex):
+    """Apply a background fill colour to a paragraph.
+
+    Args:
+        paragraph: A python-docx Paragraph object.
+        fill_hex: A six-character hex string (without '#'), e.g. 'D6E4F0'.
+    """
     pPr = paragraph._p.get_or_add_pPr()
     shd = OxmlElement('w:shd')
     shd.set(qn('w:val'), 'clear')
@@ -58,6 +64,12 @@ def set_shading(paragraph, fill_hex):
 
 # ── בוני תוכן ────────────────────────────────────────────────
 def add_title(doc, text):
+    """Add a large, centred, blue RTL title paragraph to the document.
+
+    Args:
+        doc: A python-docx Document object.
+        text: The title text to add.
+    """
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run(text)
@@ -69,6 +81,12 @@ def add_title(doc, text):
     make_rtl_run(run)
 
 def add_h1(doc, text):
+    """Add a level-1 heading with a blue shaded background (RTL).
+
+    Args:
+        doc: A python-docx Document object.
+        text: The heading text to add.
+    """
     p = doc.add_paragraph()
     make_rtl(p)
     run = p.add_run(text)
@@ -81,6 +99,12 @@ def add_h1(doc, text):
     doc.add_paragraph()
 
 def add_h2(doc, text):
+    """Add a level-2 heading in blue (RTL, no background shading).
+
+    Args:
+        doc: A python-docx Document object.
+        text: The heading text to add.
+    """
     p = doc.add_paragraph()
     make_rtl(p)
     run = p.add_run(text)
@@ -91,6 +115,12 @@ def add_h2(doc, text):
     make_rtl_run(run)
 
 def add_body(doc, text):
+    """Add a regular body paragraph (RTL, 11pt David font).
+
+    Args:
+        doc: A python-docx Document object.
+        text: The body text to add.
+    """
     p = doc.add_paragraph()
     make_rtl(p)
     run = p.add_run(text)
@@ -123,6 +153,12 @@ def add_code_block(doc, code):
     run.font.color.rgb = RGBColor(0x1A, 0x1A, 0x1A)
 
 def add_bullet(doc, text):
+    """Add a right-to-left bullet point paragraph with a '◄' prefix.
+
+    Args:
+        doc: A python-docx Document object.
+        text: The bullet item text.
+    """
     p = doc.add_paragraph()
     make_rtl(p)
     pPr = p._p.get_or_add_pPr()
@@ -136,6 +172,13 @@ def add_bullet(doc, text):
     make_rtl_run(run)
 
 def add_numbered(doc, num, text):
+    """Add a numbered list item paragraph (RTL).
+
+    Args:
+        doc: A python-docx Document object.
+        num: The number or label to display (e.g. 1, 2, '10').
+        text: The item text.
+    """
     p = doc.add_paragraph()
     make_rtl(p)
     pPr = p._p.get_or_add_pPr()
@@ -148,6 +191,11 @@ def add_numbered(doc, num, text):
     make_rtl_run(run)
 
 def add_separator(doc):
+    """Add a centred horizontal separator line made of '─' characters.
+
+    Args:
+        doc: A python-docx Document object.
+    """
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run('─' * 55)

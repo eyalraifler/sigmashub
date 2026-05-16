@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { API_URL } from "../lib/config";
 import { getAccessToken, getIsAdmin } from "../lib/auth";
+
+const PAGE_SIZE = 20;
 
 /**
  * Renders a single post card with media carousel, likes, comments, and download.
@@ -410,48 +412,63 @@ function PostCard({ post, userId, isAdmin, onLike, onComment, onDelete }) {
 }
 
 /**
- * Renders the full post feed, fetching posts from the API.
+ * Renders the full post feed with infinite scroll.
  *
- * Re-fetches whenever userId or refreshTrigger changes.
- * Updates like counts and comment counts locally after user interactions
- * without needing a full re-fetch.
+ * Loads 20 posts at a time. When the user scrolls to within 5 posts of the
+ * end, a sentinel div becomes visible and triggers the next page fetch.
+ * New posts are appended to the existing list rather than replacing it.
  *
  * @param {Object} props
- * @param {number} props.userId - The logged-in user's ID, used for like/follow state.
- * @param {*} props.refreshTrigger - Any value — changing it triggers a feed re-fetch.
+ * @param {number} props.userId - The logged-in user's ID.
+ * @param {*} props.refreshTrigger - Changing this resets and re-fetches the feed.
+ * @param {string} props.mode - "for-you" or "recent".
  * @returns {JSX.Element}
  */
 export default function PostsFeed({ userId, refreshTrigger, mode = "recent" }) {
   const [posts, setPosts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [error, setError] = useState("");
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Refs so the IntersectionObserver callback always reads the latest values
+  // without needing to be recreated on every state change.
+  const offsetRef = useRef(0);
+  const hasMoreRef = useRef(true);
+  const isLoadingMoreRef = useRef(false);
+  const sentinelRef = useRef(null);
 
   useEffect(() => {
     setIsAdmin(getIsAdmin());
   }, []);
 
-  /**
-   * Fetch the post feed from the API and update the posts state.
-   */
-  const fetchPosts = async () => {
+  const buildEndpoint = (off) => {
+    const base =
+      mode === "for-you" && userId
+        ? `${API_URL}/api/posts/for-you?user_id=${userId}`
+        : userId
+        ? `${API_URL}/api/posts/feed?user_id=${userId}`
+        : `${API_URL}/api/posts/feed?`;
+    return `${base}&limit=${PAGE_SIZE}&offset=${off}`;
+  };
+
+  // Initial load — resets everything and fetches from offset 0.
+  const loadInitial = async () => {
     setIsLoading(true);
+    setError("");
+    offsetRef.current = 0;
+    hasMoreRef.current = true;
+    isLoadingMoreRef.current = false;
     try {
-      const endpoint =
-        mode === "for-you" && userId
-          ? `${API_URL}/api/posts/for-you?user_id=${userId}`
-          : userId
-          ? `${API_URL}/api/posts/feed?user_id=${userId}`
-          : `${API_URL}/api/posts/feed`;
-
-      const response = await fetch(endpoint);
-      const data = await response.json();
-
-      if (data.ok) {
-        setPosts(data.posts);
-      } else {
-        throw new Error("Failed to fetch posts");
-      }
+      const res = await fetch(buildEndpoint(0), { cache: "no-store" });
+      const data = await res.json();
+      if (!data.ok) throw new Error("Failed to fetch posts");
+      setPosts(data.posts);
+      const more = data.posts.length === PAGE_SIZE;
+      hasMoreRef.current = more;
+      setHasMore(more);
+      offsetRef.current = data.posts.length;
     } catch (err) {
       setError(err.message || "Failed to load posts");
     } finally {
@@ -460,52 +477,70 @@ export default function PostsFeed({ userId, refreshTrigger, mode = "recent" }) {
   };
 
   useEffect(() => {
-    fetchPosts();
-  }, [userId, refreshTrigger]);
+    loadInitial();
+  }, [userId, refreshTrigger, mode]);
 
-  /**
-   * Update the like count and like state for a post in the local list.
-   *
-   * @param {number} postId - The ID of the post that was liked/unliked.
-   * @param {boolean} liked - True if the post was just liked, false if unliked.
-   */
+  // Set up IntersectionObserver on the sentinel element.
+  // Re-runs when posts.length changes (sentinel moves) or mode/userId changes.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || isLoadingMoreRef.current || !hasMoreRef.current) return;
+
+        isLoadingMoreRef.current = true;
+        setIsLoadingMore(true);
+
+        fetch(buildEndpoint(offsetRef.current), { cache: "no-store" })
+          .then((r) => r.json())
+          .then((data) => {
+            if (!data.ok) throw new Error("Failed to fetch more posts");
+            setPosts((prev) => {
+                const seenIds = new Set(prev.map((p) => p.id));
+                return [...prev, ...data.posts.filter((p) => !seenIds.has(p.id))];
+              });
+            const more = data.posts.length === PAGE_SIZE;
+            hasMoreRef.current = more;
+            setHasMore(more);
+            offsetRef.current += data.posts.length;
+          })
+          .catch((err) => console.error("loadMore error:", err))
+          .finally(() => {
+            isLoadingMoreRef.current = false;
+            setIsLoadingMore(false);
+          });
+      },
+      { threshold: 0.1 }
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [posts.length, mode, userId]);
+
   const handleLike = (postId, liked) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === postId
-          ? {
-              ...post,
-              is_liked_by_user: liked,
-              likes_count: liked ? post.likes_count + 1 : post.likes_count - 1,
-            }
-          : post
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === postId
+          ? { ...p, is_liked_by_user: liked, likes_count: liked ? p.likes_count + 1 : p.likes_count - 1 }
+          : p
       )
     );
   };
 
-  /**
-   * Increment the comment count for a post in the local list.
-   *
-   * @param {number} postId - The ID of the post that received a new comment.
-   */
   const handleComment = (postId) => {
-    setPosts((prevPosts) =>
-      prevPosts.map((post) =>
-        post.id === postId
-          ? { ...post, comments_count: post.comments_count + 1 }
-          : post
-      )
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, comments_count: p.comments_count + 1 } : p))
     );
   };
 
   const handleDelete = (postId) => {
-    setPosts((prevPosts) => prevPosts.filter((p) => p.id !== postId));
+    setPosts((prev) => prev.filter((p) => p.id !== postId));
   };
 
   if (isLoading) {
-    return (
-      <div className="text-white/50 text-center py-8">Loading posts...</div>
-    );
+    return <div className="text-white/50 text-center py-8">Loading posts...</div>;
   }
 
   if (error) {
@@ -520,19 +555,34 @@ export default function PostsFeed({ userId, refreshTrigger, mode = "recent" }) {
     );
   }
 
+  // Place sentinel 5 posts before the end so the next batch loads while
+  // the user still has posts to scroll through.
+  const sentinelIndex = posts.length > 5 ? posts.length - 6 : posts.length - 1;
+
   return (
     <div>
-      {posts.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          userId={userId}
-          isAdmin={isAdmin}
-          onLike={handleLike}
-          onComment={handleComment}
-          onDelete={handleDelete}
-        />
+      {posts.map((post, index) => (
+        <div key={post.id}>
+          <PostCard
+            post={post}
+            userId={userId}
+            isAdmin={isAdmin}
+            onLike={handleLike}
+            onComment={handleComment}
+            onDelete={handleDelete}
+          />
+          {index === sentinelIndex && hasMore && (
+            <div ref={sentinelRef} aria-hidden="true" />
+          )}
+        </div>
       ))}
+
+      {isLoadingMore && (
+        <div className="text-white/50 text-center py-4 text-sm">Loading more posts...</div>
+      )}
+      {!hasMore && (
+        <div className="text-white/30 text-center py-6 text-sm">You&apos;ve seen it all!</div>
+      )}
     </div>
   );
 }

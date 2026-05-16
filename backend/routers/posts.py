@@ -125,7 +125,6 @@ def get_posts_feed(user_id: int, limit: int = 20, offset: int = 0):
     try:
         with db() as client:
             posts = get_feed_posts(client, limit, offset, viewer_id=user_id)
-            posts = posts[:5]  # demo limit
             enrich_posts(client, posts, viewer_id=user_id)
 
         results = []
@@ -263,6 +262,19 @@ def delete_post_route(post_id: int, current_user_id: int = Depends(get_current_u
 
 @router.post("/posts/{post_id}/save")
 def save_post(post_id: int, current_user_id: int = Depends(get_current_user)):
+    """Toggle saving a post — save if not saved, unsave if already saved.
+
+    Args:
+        post_id: The ID of the post to save/unsave.
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True and 'saved' bool indicating the new save state.
+
+    Raises:
+        HTTPException(404): If the post does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             with client.transaction() as tx:

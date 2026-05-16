@@ -1,4 +1,18 @@
+"""Notification query helpers — fetching, marking read, and inserting notifications."""
+
+
 def get_user_notifications(client, user_id: int) -> list:
+    """Fetch the 50 most recent notifications for a user.
+
+    Args:
+        client: An open RemoteDBClient instance.
+        user_id: The ID of the user whose notifications to fetch.
+
+    Returns:
+        A list of notification dicts ordered newest first, each containing id,
+        actor_user_id, actor_username, actor_profile_image_url,
+        notification_type, post_id, post_media_url, chat_id, is_read, created_at.
+    """
     return client.execute(
         """
         SELECT id, actor_user_id, actor_username, actor_profile_image_url,
@@ -13,6 +27,12 @@ def get_user_notifications(client, user_id: int) -> list:
 
 
 def mark_notifications_read(tx, user_id: int):
+    """Mark all unread notifications as read for a user.
+
+    Args:
+        tx: An active transaction (_Transaction instance).
+        user_id: The ID of the user whose notifications to mark as read.
+    """
     tx.execute(
         "UPDATE notifications SET is_read=1 WHERE user_id=%s AND is_read=0",
         (user_id,),

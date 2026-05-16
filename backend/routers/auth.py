@@ -188,6 +188,8 @@ def check_user_available(payload: SignupRequest):
         raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
     if "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
+    if len(payload.password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     with db() as client:
         if check_username_taken(client, username):
@@ -222,6 +224,8 @@ def signup(payload: SignupRequest):
         raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
     if "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
     pw_hash = hash_password(password)
 
@@ -268,6 +272,8 @@ def complete_signup(payload: SignupCompleteRequest):
         raise HTTPException(status_code=400, detail="Username must be less than 32 chars")
     if "@" not in email:
         raise HTTPException(status_code=400, detail="Invalid email")
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     if len(bio) > 200:
         raise HTTPException(status_code=400, detail="Bio must be less than 200 chars")
 

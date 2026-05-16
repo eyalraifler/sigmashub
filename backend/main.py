@@ -50,6 +50,12 @@ app.include_router(ai.router)
 
 @app.get("/health")
 def health():
+    """Check API and database connectivity.
+
+    Returns:
+        JSON with 'status' ("ok" or "error"), 'database' ("connected" or
+        "disconnected"), and 'ts' (current Unix timestamp).
+    """
     try:
         with db() as client:
             client.execute("SELECT 1")
@@ -75,6 +81,18 @@ class ContactRequest(BaseModel):
 
 @app.post("/api/contact")
 def contact(req: ContactRequest):
+    """Handle a contact form submission and send it as an email.
+
+    Args:
+        req: Contains 'name', 'email', and 'message' (all required).
+
+    Returns:
+        JSON with ok=True if the email was sent successfully.
+
+    Raises:
+        HTTPException(400): If any field is blank.
+        HTTPException(500): If the email could not be sent.
+    """
     name = req.name.strip()
     email = req.email.strip()
     message = req.message.strip()

@@ -16,6 +16,15 @@ load_dotenv(os.path.join(BASE_DIR, '..', '.env'))
 
 class _DateTimeEncoder(json.JSONEncoder):
     def default(self, obj):
+        """Serialize datetime, date, and Decimal objects to JSON-compatible types.
+
+        Args:
+            obj: The object to serialize.
+
+        Returns:
+            ISO-format string for datetime/date, int for Decimal, or delegates
+            to the default JSONEncoder for all other types.
+        """
         if isinstance(obj, (datetime.datetime, datetime.date)):
             return obj.isoformat()
         if isinstance(obj, Decimal):
@@ -24,11 +33,28 @@ class _DateTimeEncoder(json.JSONEncoder):
 
 
 def _send(sock, payload: dict):
+    """Serialize payload to JSON and send it over a socket with a 4-byte length prefix.
+
+    Args:
+        sock: An open socket to write to.
+        payload: The dict to serialize and send (datetimes/Decimals are handled).
+    """
     data = json.dumps(payload, cls=_DateTimeEncoder).encode('utf-8')
     sock.sendall(struct.pack('>I', len(data)) + data)
 
 
 def _recv(sock) -> dict | None:
+    """Read a length-prefixed JSON message from the socket.
+
+    Reads 4 bytes to determine the payload length, then reads exactly that
+    many bytes and deserializes them as JSON.
+
+    Args:
+        sock: An open socket to read from.
+
+    Returns:
+        The deserialized response dict, or None if the connection was closed.
+    """
     raw_len = _recvall(sock, 4)
     if not raw_len:
         return None
@@ -40,6 +66,15 @@ def _recv(sock) -> dict | None:
 
 
 def _recvall(sock, n: int) -> bytes | None:
+    """Read exactly n bytes from the socket, looping over partial reads.
+
+    Args:
+        sock: An open socket to read from.
+        n: The exact number of bytes to read.
+
+    Returns:
+        The bytes read, or None if the connection was closed before n bytes arrived.
+    """
     buf = b''
     while len(buf) < n:
         chunk = sock.recv(n - len(buf))
@@ -50,6 +85,16 @@ def _recvall(sock, n: int) -> bytes | None:
 
 
 def _serve_connection(conn_socket, addr):
+    """Handle one client connection in a dedicated thread.
+
+    Opens a MySQL connection, then loops reading SQL requests from the client
+    socket. Handles BEGIN/COMMIT/ROLLBACK for transaction management and
+    dispatches other queries to MySQL. Cleans up all resources on exit.
+
+    Args:
+        conn_socket: The accepted TCP (or TLS-wrapped) socket for this client.
+        addr: The client's (host, port) address tuple, used for logging.
+    """
     print(f"Connected by {addr}")
     db = None
     cursor = None
@@ -153,6 +198,17 @@ def _serve_connection(conn_socket, addr):
 
 
 def start_db_server(host='0.0.0.0', port=5000):
+    """Start the TCP database server and accept connections indefinitely.
+
+    Listens on all network interfaces so remote clients can connect. Each
+    accepted connection is handed off to _serve_connection in a daemon thread,
+    enabling concurrent clients. TLS is enabled when DB_SSL_CERT and
+    DB_SSL_KEY are set in the environment.
+
+    Args:
+        host: The address to bind to (default '0.0.0.0' = all interfaces).
+        port: The TCP port to listen on (default 5000).
+    """
     print(f"Starting DB server on {host}:{port}...")
 
     ssl_cert = os.getenv("DB_SSL_CERT")
@@ -181,6 +237,14 @@ def start_db_server(host='0.0.0.0', port=5000):
 
 
 def _get_lan_ip():
+    """Detect the machine's LAN IP address by connecting to a public DNS server.
+
+    Uses a UDP trick: connecting to 8.8.8.8:80 (no data is actually sent)
+    causes the OS to pick the default outbound interface, revealing the LAN IP.
+
+    Returns:
+        The LAN IP as a string, or '127.0.0.1' if detection fails.
+    """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(('8.8.8.8', 80))

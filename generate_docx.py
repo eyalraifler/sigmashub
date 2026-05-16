@@ -280,6 +280,15 @@ def add_section_title(doc, title):
 
 
 def read_file_safe(path):
+    """Read a file's text content, trying multiple encodings.
+
+    Args:
+        path: A Path or string path to the file.
+
+    Returns:
+        The file contents as a string, or a '[Could not read file: ...]'
+        placeholder if all encoding attempts fail.
+    """
     for enc in ['utf-8', 'utf-8-sig', 'latin-1']:
         try:
             with open(path, 'r', encoding=enc) as f:
@@ -290,6 +299,12 @@ def read_file_safe(path):
 
 
 def main():
+    """Generate a VSCode Dark+ themed DOCX containing all backend and frontend source files.
+
+    Reads every file listed in BACKEND_FILES and FRONTEND_FILES, syntax-highlights
+    each one using Pygments, and writes the result to sigmashub_code.docx in the
+    project root. Files that do not exist are skipped with a warning.
+    """
     base = Path(r'c:\Users\eyalr\sigmashub')
     output = base / 'sigmashub_code.docx'
 

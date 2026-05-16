@@ -26,6 +26,17 @@ class SendMessageRequest(BaseModel):
 
 @router.get("/chats")
 def list_chats(current_user_id: int = Depends(get_current_user)):
+    """List all chats for the authenticated user, enriched with last message and member info.
+
+    Args:
+        current_user_id: Injected from JWT.
+
+    Returns:
+        JSON with ok=True and a 'chats' list ordered by most recent activity.
+
+    Raises:
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             chats = get_user_chats(client, current_user_id)
@@ -95,6 +106,19 @@ def unread_count(request: Request):
 
 @router.post("/chats/{chat_id}/read")
 def mark_read(chat_id: int, current_user_id: int = Depends(get_current_user)):
+    """Mark all messages in a chat as read up to the latest message.
+
+    Args:
+        chat_id: The ID of the chat to mark as read.
+        current_user_id: Injected from JWT — must be a member of the chat.
+
+    Returns:
+        JSON with ok=True.
+
+    Raises:
+        HTTPException(403): If the user is not a member of the chat.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             if not is_chat_member(client, chat_id, current_user_id):
@@ -121,6 +145,22 @@ def get_chat(
     offset: int = 0,
     current_user_id: int = Depends(get_current_user),
 ):
+    """Fetch a chat's details, member list, and paginated messages.
+
+    Args:
+        chat_id: The ID of the chat to fetch.
+        limit: Maximum number of messages to return (default 50).
+        offset: Number of messages to skip for pagination (default 0).
+        current_user_id: Injected from JWT — must be a member of the chat.
+
+    Returns:
+        JSON with ok=True, 'chat' metadata, 'members' list, and 'messages' list.
+
+    Raises:
+        HTTPException(403): If the user is not a member of the chat.
+        HTTPException(404): If the chat does not exist.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             if not is_chat_member(client, chat_id, current_user_id):
@@ -149,6 +189,21 @@ def get_messages(
     after_id: int = 0,
     current_user_id: int = Depends(get_current_user),
 ):
+    """Fetch messages for a chat. Supports polling via after_id.
+
+    Args:
+        chat_id: The ID of the chat to fetch messages from.
+        after_id: If > 0, return only messages with id > after_id (for polling).
+                  If 0, return the latest 50 messages.
+        current_user_id: Injected from JWT — must be a member of the chat.
+
+    Returns:
+        JSON with ok=True and a 'messages' list.
+
+    Raises:
+        HTTPException(403): If the user is not a member of the chat.
+        HTTPException(500): On unexpected server error.
+    """
     try:
         with db() as client:
             if not is_chat_member(client, chat_id, current_user_id):
@@ -171,6 +226,21 @@ def post_message(
     req: SendMessageRequest,
     current_user_id: int = Depends(get_current_user),
 ):
+    """Send a message in a chat and notify the recipient.
+
+    Args:
+        chat_id: The ID of the chat to post to.
+        req: Contains the message 'text'.
+        current_user_id: Injected from JWT — must be a member of the chat.
+
+    Returns:
+        JSON with ok=True and the new 'message_id'.
+
+    Raises:
+        HTTPException(400): If the message text is empty.
+        HTTPException(403): If the user is not a member of the chat.
+        HTTPException(500): On unexpected server error.
+    """
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
