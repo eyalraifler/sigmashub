@@ -31,6 +31,7 @@ export default function NavBar() {
 
   return (
     <header
+      suppressHydrationWarning
       className={[
         "fixed top-0 z-50 w-full border-b transition-all duration-300 black_pointy",
         scrolled
