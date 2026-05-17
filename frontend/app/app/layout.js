@@ -13,15 +13,22 @@ export default async function AppLayout({ children }) {
     redirect("/login");
   }
 
-  const userRes = await fetch(`http://127.0.0.1:8000/api/users/${userId}`, { cache: "no-store" });
+  let tourCompleted = true;
+  try {
+    const userRes = await fetch(`http://127.0.0.1:8000/api/users/${userId}`, { cache: "no-store" });
 
-  if (userRes.status === 404) {
-    // User no longer exists in the database — clear stale cookies and force re-login
-    redirect("/api/clear-session");
+    if (userRes.status === 404) {
+      // User no longer exists in the database — clear stale cookies and force re-login
+      redirect("/api/clear-session");
+    }
+
+    if (userRes.ok) {
+      const userData = await userRes.json();
+      tourCompleted = userData.user?.tour_completed ?? true;
+    }
+  } catch {
+    // Backend temporarily unavailable — keep the user logged in with default values
   }
-
-  const userData = await userRes.json();
-  const tourCompleted = userData.user?.tour_completed ?? true;
 
   return (
     <main className="bg-black min-h-screen">

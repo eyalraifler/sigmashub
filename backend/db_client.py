@@ -110,7 +110,9 @@ class RemoteDBClient:
     and transaction management.
     """
 
-    def __init__(self, host='localhost', port=5000):
+    def __init__(self, host=None, port=None):
+        host = host or os.getenv('DB_SERVER_HOST', 'localhost')
+        port = port or int(os.getenv('DB_SERVER_PORT', '5000'))
         self.host = host
         self.port = port
         self._sock = None

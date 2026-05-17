@@ -1,39 +1,35 @@
 import os
 import sys
-import mysql.connector
-from dotenv import load_dotenv
 
-USERNAME = "bb"
+USERNAME = "ggg"
 # ----------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, "backend", ".env"))
+BACKEND_DIR = os.path.join(BASE_DIR, "backend")
+sys.path.insert(0, BACKEND_DIR)
 
-conn = mysql.connector.connect(
-    host=os.getenv("DB_HOST", "127.0.0.1"),
-    port=int(os.getenv("DB_PORT", "3306")),
-    user=os.getenv("DB_USER", "root"),
-    password=os.getenv("DB_PASSWORD", ""),
-    database=os.getenv("DB_NAME", "sigmas_hub"),
-    autocommit=False,
-)
+from dotenv import load_dotenv
+load_dotenv(os.path.join(BACKEND_DIR, ".env"))
 
-cursor = conn.cursor(dictionary=True)
-cursor.execute("SELECT id, username, is_admin FROM users WHERE username=%s LIMIT 1", (USERNAME,))
-user = cursor.fetchone()
+ssl_ca = os.getenv("DB_SSL_CA")
+if ssl_ca and not os.path.isabs(ssl_ca):
+    os.environ["DB_SSL_CA"] = os.path.normpath(os.path.join(BACKEND_DIR, ssl_ca))
 
-if not user:
-    print(f"Error: user '{USERNAME}' not found.")
-    cursor.close()
-    conn.close()
-    sys.exit(1)
+from database import db
 
-if user["is_admin"]:
-    print(f"'{USERNAME}' is already an admin.")
-else:
-    cursor.execute("UPDATE users SET is_admin=1 WHERE id=%s", (user["id"],))
-    conn.commit()
-    print(f"Success: '{USERNAME}' has been promoted to admin.")
+with db() as client:
+    rows = client.execute(
+        "SELECT id, username, is_admin FROM users WHERE username=%s LIMIT 1",
+        (USERNAME,),
+    )["data"]
 
-cursor.close()
-conn.close()
+    if not rows:
+        print(f"Error: user '{USERNAME}' not found.")
+        sys.exit(1)
+
+    user = rows[0]
+    if user["is_admin"]:
+        print(f"'{USERNAME}' is already an admin.")
+    else:
+        client.execute("UPDATE users SET is_admin=1 WHERE id=%s", (user["id"],))
+        print(f"Success: '{USERNAME}' has been promoted to admin.")

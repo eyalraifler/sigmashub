@@ -10,7 +10,11 @@
       "Bash(node -e \"require\\(''enhanced-resolve''\\)\")",
       "Bash(node -e \"require\\(''@tailwindcss/node''\\)\")",
       "Bash(node -e \"require\\(''''next/package.json''''\\)\")",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Usersတ50\\\\OneDrive\\\\sigmashub\" -Recurse -Directory)",
+      "Bash(Select-Object -ExpandProperty FullName)"
     ]
   }
 }

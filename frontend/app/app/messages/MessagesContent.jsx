@@ -307,7 +307,9 @@ export default function MessagesContent({ userId, username, initialChatId = null
           message_text: text,
           created_at: new Date().toISOString(),
         };
-        setMessages((prev) => [...prev, optimistic]);
+        setMessages((prev) =>
+          prev.some((m) => m.id === data.message_id) ? prev : [...prev, optimistic]
+        );
         lastMsgIdRef.current = data.message_id;
         fetchChats();
       }
